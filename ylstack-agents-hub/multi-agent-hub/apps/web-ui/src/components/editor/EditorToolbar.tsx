@@ -90,7 +90,7 @@ export function EditorToolbar({
           title="Reset agent memory"
         >
           <RotateCcw size={12} />
-          Reset Memory
+          <span className="hidden sm:inline">Reset Memory</span>
         </button>
       </div>
     </div>

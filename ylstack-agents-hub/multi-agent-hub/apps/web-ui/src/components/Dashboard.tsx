@@ -69,10 +69,10 @@ export default function Dashboard() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">
+          <h1 className="text-base font-semibold text-foreground sm:text-lg">
             Dashboard
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="hidden text-sm text-muted-foreground sm:block">
             Overview of your agents and system status.
           </p>
         </div>

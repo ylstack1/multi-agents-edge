@@ -8,12 +8,7 @@ import { ChatPlayground } from "@/components/chat/ChatPlayground";
 import { DiagnosticPing } from "@/components/mcp/DiagnosticPing";
 import { EndpointForm } from "@/components/mcp/EndpointForm";
 import { ToolDiscoverySchema } from "@/components/mcp/ToolDiscoverySchema";
-import {
-  Moon,
-  Sun,
-  PanelRightClose,
-  PanelRightOpen,
-} from "lucide-react";
+import { Menu, Moon, PanelRightClose, PanelRightOpen, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { useAgents } from "@/hooks/useVFSClient";
@@ -48,6 +43,7 @@ function McpConfigPage() {
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
 
   useEffect(() => {
@@ -64,14 +60,26 @@ function App() {
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+        mobileOpen={mobileMenuOpen}
+        onMobileClose={() => setMobileMenuOpen(false)}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-12 items-center justify-between border-b border-border px-4">
+        {/* Mobile header */}
+        <header className="flex h-12 items-center justify-between border-b border-border px-3 sm:px-4">
           <div className="flex items-center gap-2">
+            {/* Hamburger — mobile only */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
+              title="Open menu"
+            >
+              <Menu size={20} />
+            </button>
+            {/* Collapse toggle — desktop only */}
             <button
               onClick={() => setSidebarCollapsed((prev) => !prev)}
-              className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="hidden rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground md:block"
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {sidebarCollapsed ? (
@@ -98,7 +106,7 @@ function App() {
 
         <main
           className={cn(
-            "flex-1 overflow-y-auto p-3 sm:p-6",
+            "flex-1 overflow-y-auto p-3 sm:p-4 md:p-6",
             "scrollbar-thin",
           )}
         >
