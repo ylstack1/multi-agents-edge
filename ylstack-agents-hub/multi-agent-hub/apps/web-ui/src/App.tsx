@@ -106,13 +106,13 @@ function App() {
 
         <main
           className={cn(
-            "flex-1 overflow-y-auto p-3 sm:p-4 md:p-6",
-            "scrollbar-thin",
+            "flex-1 overflow-hidden p-3 sm:p-4 md:p-6",
           )}
         >
           <ErrorBoundary>
             <AgentLoader>
-              <Routes>
+              <div className="h-full w-full overflow-y-auto scrollbar-thin">
+                <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route
                   path="/workspace/:agentId"
@@ -127,6 +127,7 @@ function App() {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+              </div>
             </AgentLoader>
           </ErrorBoundary>
         </main>

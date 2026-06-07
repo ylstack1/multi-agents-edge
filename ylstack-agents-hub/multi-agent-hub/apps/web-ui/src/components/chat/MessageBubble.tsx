@@ -49,11 +49,26 @@ const roleConfig = {
   },
 };
 
+/** Extract  tags from content, returning { cleaned, thinkContent } */
+function extractThinkTag(content: string): { cleaned: string; thinkContent: string | null } {
+  const match = content.match(/^<think>([\s\S]*?)<\/think>/);
+  if (!match) return { cleaned: content, thinkContent: null };
+  return {
+    cleaned: content.replace(/<think>[\s\S]*?<\/think>/g, "").trim(),
+    thinkContent: match[1].trim(),
+  };
+}
+
 export function MessageBubble({ message }: MessageBubbleProps) {
   const config = roleConfig[message.role] ?? roleConfig.assistant;
   const Icon = config.icon;
   const [showReasoning, setShowReasoning] = useState(false);
   const [showToolCalls, setShowToolCalls] = useState(false);
+
+  // Parse think tags from content
+  const { cleaned: displayContent, thinkContent } = extractThinkTag(message.content);
+  const reasoningText = message.reasoning || thinkContent;
+  const isStreaming = message.content === "" && reasoningText === null;
 
   return (
     <div
@@ -92,65 +107,75 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           <span>{formatTimestamp(message.timestamp)}</span>
         </div>
 
-        {/* Message body */}
-        <div
-          className={cn(
-            "rounded-lg px-3 py-2 text-sm",
-            config.bg,
-            config.textColor,
-          )}
-        >
-          <ReactMarkdown
-            rehypePlugins={[rehypeHighlight]}
-            components={{
-              pre: ({ children }) => (
-                <pre className="my-2 overflow-x-auto rounded-md bg-black/30 p-3 text-xs scrollbar-thin">
-                  {children}
-                </pre>
-              ),
-              code: ({ className, children, ...props }) => {
-                const isInline = !className;
-                if (isInline) {
-                  return (
-                    <code
-                      className="rounded bg-black/20 px-1 py-0.5 text-xs"
-                      {...props}
-                    >
-                      {children}
-                    </code>
-                  );
-                }
-                return (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                );
-              },
-            }}
-          >
-            {message.content}
-          </ReactMarkdown>
-        </div>
-
-        {/* Reasoning toggle */}
-        {message.reasoning && (
-          <div className="pt-1">
+        {/* Reasoning toggle — show if reasoning text exists */}
+        {reasoningText && (
+          <div>
             <button
               onClick={() => setShowReasoning((prev) => !prev)}
-              className="flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-muted-foreground"
+              className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 hover:text-muted-foreground"
             >
               {showReasoning ? (
                 <ChevronDown size={10} />
               ) : (
                 <ChevronRight size={10} />
               )}
-              Reasoning
+              <span className="rounded bg-amber-500/10 px-1 py-0.5 font-medium text-amber-400">
+                {showReasoning ? "Hide" : "View"}
+              </span>
+              thinking
+              <span className="text-[9px] text-muted-foreground/40">
+                {reasoningText.length > 80
+                  ? reasoningText.slice(0, 80).replace(/\s+\S*$/, "") + "…"
+                  : reasoningText}
+              </span>
             </button>
             {showReasoning && (
-              <div className="mt-1 rounded-md bg-muted/30 p-2 text-[11px] italic text-muted-foreground/70">
-                {message.reasoning}
+              <div className="mt-1.5 rounded-md border border-amber-500/15 bg-amber-500/5 p-3 text-[11px] leading-relaxed text-muted-foreground/80 scrollbar-thin max-h-48 overflow-y-auto">
+                {reasoningText}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Message body — only show if there's display content */}
+        {(displayContent || isStreaming) && (
+          <div
+            className={cn(
+              "rounded-lg px-3 py-2 text-sm",
+              config.bg,
+              config.textColor,
+            )}
+          >
+            <ReactMarkdown
+              rehypePlugins={[rehypeHighlight]}
+              components={{
+                pre: ({ children }) => (
+                  <pre className="my-2 overflow-x-auto rounded-md bg-black/30 p-3 text-xs scrollbar-thin">
+                    {children}
+                  </pre>
+                ),
+                code: ({ className, children, ...props }) => {
+                  const isInline = !className;
+                  if (isInline) {
+                    return (
+                      <code
+                        className="rounded bg-black/20 px-1 py-0.5 text-xs"
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    );
+                  }
+                  return (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+              }}
+            >
+              {displayContent || (isStreaming ? "..." : "")}
+            </ReactMarkdown>
           </div>
         )}
 

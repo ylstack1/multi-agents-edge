@@ -313,7 +313,7 @@ export function ChatPlayground() {
           showInspector ? "md:w-1/2" : "flex-1",
         )}
       >
-        {/* Agent bar — compact mobile header */}
+        {/* Agent bar — compact header, fixed */}
         <div className="mb-2 flex shrink-0 items-center justify-between md:mb-3">
           <div className="flex items-center gap-1.5">
             <div className="relative">
@@ -371,8 +371,8 @@ export function ChatPlayground() {
           </div>
         </div>
 
-        {/* Messages — scrollable */}
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card">
+        {/* Messages — scrollable, fills remaining space */}
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card scrollbar-thin">
           <MessageList messages={chatMessages} isLoading={isLoading} />
         </div>
 
