@@ -16,3 +16,4 @@ coverage/
 *.mobileprovision
 *.orig.*
 web-build/
+.wrangler/
