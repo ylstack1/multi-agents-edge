@@ -5,6 +5,15 @@
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
+// Generate session token for API auth
+function getSessionToken(): string {
+  try {
+    return btoa('lead:WEB_UI');
+  } catch {
+    return '';
+  }
+}
+
 class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -22,6 +31,7 @@ async function request<T>(
   const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
+      "Authorization": `Bearer ${getSessionToken()}`,
       ...options.headers,
     },
     ...options,
@@ -167,7 +177,7 @@ export async function streamChat(
   const url = `${API_BASE}/chat`;
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${getSessionToken()}` },
     body: JSON.stringify({ agentId, message, stream: true } satisfies ChatRequest),
   });
 

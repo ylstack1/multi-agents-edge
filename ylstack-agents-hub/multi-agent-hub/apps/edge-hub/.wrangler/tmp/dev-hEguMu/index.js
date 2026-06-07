@@ -7029,219 +7029,6 @@ var ingressRouter = createMiddleware(async (c, next) => {
   await next();
 });
 
-// ../../packages/vfs/src/s3-fetch-client.ts
-var S3FetchClient = class {
-  static {
-    __name(this, "S3FetchClient");
-  }
-  config;
-  fetch;
-  constructor(config, fetcher = globalThis.fetch.bind(globalThis)) {
-    this.config = config;
-    this.fetch = fetcher;
-  }
-  async getObject(agentId, fileName) {
-    const encodedKey = encodeURIComponent(`${agentId}/${fileName}`);
-    const url = `${this.config.r2Endpoint}/${this.config.r2Bucket}/${encodedKey}`;
-    try {
-      const response = await this.fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "text/plain"
-        }
-      });
-      if (response.status === 404) {
-        return { content: null };
-      }
-      if (!response.ok) {
-        throw new Error(`S3 fetch failed: ${response.status} ${response.statusText}`);
-      }
-      return {
-        content: await response.text(),
-        lastModified: response.headers.get("Last-Modified") ?? void 0
-      };
-    } catch (err) {
-      throw new Error(`Failed to fetch s3://${this.config.r2Bucket}/${agentId}/${fileName}: ${err}`);
-    }
-  }
-  async putObject(agentId, fileName, content) {
-    const encodedKey = encodeURIComponent(`${agentId}/${fileName}`);
-    const url = `${this.config.r2Endpoint}/${this.config.r2Bucket}/${encodedKey}`;
-    const response = await this.fetch(url, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "text/markdown; charset=utf-8"
-      },
-      body: content
-    });
-    if (!response.ok) {
-      throw new Error(`S3 put failed: ${response.status} ${response.statusText}`);
-    }
-  }
-  async deleteObject(agentId, fileName) {
-    const encodedKey = encodeURIComponent(`${agentId}/${fileName}`);
-    const url = `${this.config.r2Endpoint}/${this.config.r2Bucket}/${encodedKey}`;
-    const response = await this.fetch(url, {
-      method: "DELETE"
-    });
-    if (!response.ok && response.status !== 404) {
-      throw new Error(`S3 delete failed: ${response.status} ${response.statusText}`);
-    }
-  }
-  async listObjects(prefix) {
-    const encodedPrefix = encodeURIComponent(prefix);
-    const url = `${this.config.r2Endpoint}/${this.config.r2Bucket}?prefix=${encodedPrefix}`;
-    const response = await this.fetch(url, {
-      method: "GET",
-      headers: { Accept: "application/xml" }
-    });
-    if (!response.ok) {
-      throw new Error(`S3 list failed: ${response.status} ${response.statusText}`);
-    }
-    const text = await response.text();
-    const keys = [];
-    const keyRegex = /<Key>([^<]+)<\/Key>/g;
-    let match2;
-    while ((match2 = keyRegex.exec(text)) !== null) {
-      if (match2[1]) keys.push(match2[1]);
-    }
-    return keys;
-  }
-  async fetchFiles(agentId, fileNames) {
-    const results = await Promise.allSettled(
-      fileNames.map((fn) => this.getObject(agentId, fn))
-    );
-    const files = {};
-    fileNames.forEach((fn, idx) => {
-      const result = results[idx];
-      if (result && result.status === "fulfilled") {
-        files[fn] = result.value.content;
-      } else {
-        files[fn] = null;
-      }
-    });
-    return files;
-  }
-};
-
-// ../../packages/vfs/src/kv-cache-manager.ts
-var KVCacheManager = class {
-  static {
-    __name(this, "KVCacheManager");
-  }
-  kv;
-  config;
-  constructor(kv, config = {}) {
-    this.kv = kv;
-    this.config = {
-      defaultTtlSeconds: config.defaultTtlSeconds ?? 300,
-      // 5 min default
-      keyPrefix: config.keyPrefix ?? "vfs:"
-    };
-  }
-  cacheKey(agentId, fileName) {
-    return `${this.config.keyPrefix}${agentId}:${fileName}`;
-  }
-  async get(agentId, fileName) {
-    return this.kv.get(this.cacheKey(agentId, fileName));
-  }
-  async set(agentId, fileName, content, ttlSeconds) {
-    await this.kv.put(this.cacheKey(agentId, fileName), content, {
-      expirationTtl: ttlSeconds ?? this.config.defaultTtlSeconds
-    });
-  }
-  async invalidate(agentId, fileName) {
-    await this.kv.delete(this.cacheKey(agentId, fileName));
-  }
-  async invalidateWorkspace(agentId) {
-    const fileNames = [
-      "soul.md",
-      "identity.md",
-      "user.md",
-      "memory.md",
-      "tools.md"
-    ];
-    await Promise.allSettled(
-      fileNames.map((fn) => this.invalidate(agentId, fn))
-    );
-  }
-  async getOrFetch(agentId, fileName, fetcher) {
-    const cached = await this.get(agentId, fileName);
-    if (cached !== null) return cached;
-    const content = await fetcher();
-    if (content !== null) {
-      await this.set(agentId, fileName, content);
-    }
-    return content;
-  }
-};
-
-// ../../packages/vfs/src/workspace-hydrator.ts
-var WorkspaceHydrator = class {
-  static {
-    __name(this, "WorkspaceHydrator");
-  }
-  deps;
-  constructor(deps) {
-    this.deps = deps;
-  }
-  async readWorkspace(agentId, useCache = true) {
-    const fileNames = [...MARKDOWN_FILE_NAMES];
-    const files = {};
-    const fetchPromises = fileNames.map(async (fileName) => {
-      if (useCache && this.deps.cache) {
-        files[fileName] = await this.deps.cache.getOrFetch(
-          agentId,
-          fileName,
-          () => this.deps.s3.getObject(agentId, fileName).then((r) => r.content)
-        );
-      } else {
-        const result = await this.deps.s3.getObject(agentId, fileName);
-        files[fileName] = result.content;
-      }
-    });
-    await Promise.all(fetchPromises);
-    return {
-      agentId,
-      files,
-      lastModifiedEpochMs: Date.now()
-    };
-  }
-  async writeFile(agentId, fileName, content) {
-    if (!isValidMarkdownFileName(fileName)) {
-      throw new Error(`Invalid markdown file name: ${fileName}`);
-    }
-    await this.deps.s3.putObject(agentId, fileName, content);
-    if (this.deps.cache) {
-      await this.deps.cache.invalidate(agentId, fileName);
-    }
-  }
-  async listWorkspaces() {
-    const keys = await this.deps.s3.listObjects("");
-    const agentIds = /* @__PURE__ */ new Set();
-    for (const key of keys) {
-      const parts = key.split("/");
-      if (parts[0]) agentIds.add(parts[0]);
-    }
-    return [...agentIds];
-  }
-  async deleteWorkspace(agentId) {
-    const keys = await this.deps.s3.listObjects(`${agentId}/`);
-    await Promise.all(
-      keys.map((key) => {
-        const fileName = key.split("/")[1];
-        if (fileName && isValidMarkdownFileName(fileName)) {
-          return this.deps.s3.deleteObject(agentId, fileName);
-        }
-        return Promise.resolve();
-      })
-    );
-    if (this.deps.cache) {
-      await this.deps.cache.invalidateWorkspace(agentId);
-    }
-  }
-};
-
 // ../../packages/compiler/src/types.ts
 var DEFAULT_CONCATENATION_ORDER = [
   "soul.md",
@@ -7431,26 +7218,178 @@ function extractToolDefinitions(toolsMdContent) {
 }
 __name(extractToolDefinitions, "extractToolDefinitions");
 
+// ../../packages/vfs/src/kv-cache-manager.ts
+var KVCacheManager = class {
+  static {
+    __name(this, "KVCacheManager");
+  }
+  kv;
+  config;
+  constructor(kv, config = {}) {
+    this.kv = kv;
+    this.config = {
+      defaultTtlSeconds: config.defaultTtlSeconds ?? 300,
+      // 5 min default
+      keyPrefix: config.keyPrefix ?? "vfs:"
+    };
+  }
+  cacheKey(agentId, fileName) {
+    return `${this.config.keyPrefix}${agentId}:${fileName}`;
+  }
+  async get(agentId, fileName) {
+    return this.kv.get(this.cacheKey(agentId, fileName));
+  }
+  async set(agentId, fileName, content, ttlSeconds) {
+    await this.kv.put(this.cacheKey(agentId, fileName), content, {
+      expirationTtl: ttlSeconds ?? this.config.defaultTtlSeconds
+    });
+  }
+  async invalidate(agentId, fileName) {
+    await this.kv.delete(this.cacheKey(agentId, fileName));
+  }
+  async invalidateWorkspace(agentId) {
+    const fileNames = [
+      "soul.md",
+      "identity.md",
+      "user.md",
+      "memory.md",
+      "tools.md"
+    ];
+    await Promise.allSettled(
+      fileNames.map((fn) => this.invalidate(agentId, fn))
+    );
+  }
+  async getOrFetch(agentId, fileName, fetcher) {
+    const cached = await this.get(agentId, fileName);
+    if (cached !== null) return cached;
+    const content = await fetcher();
+    if (content !== null) {
+      await this.set(agentId, fileName, content);
+    }
+    return content;
+  }
+};
+
+// ../../packages/vfs/src/workspace-hydrator.ts
+var WorkspaceHydrator = class {
+  static {
+    __name(this, "WorkspaceHydrator");
+  }
+  deps;
+  constructor(deps) {
+    this.deps = deps;
+  }
+  async readWorkspace(agentId, useCache = true) {
+    const fileNames = [...MARKDOWN_FILE_NAMES];
+    const files = {};
+    const fetchPromises = fileNames.map(async (fileName) => {
+      if (useCache && this.deps.cache) {
+        files[fileName] = await this.deps.cache.getOrFetch(
+          agentId,
+          fileName,
+          () => this.deps.s3.getObject(agentId, fileName).then((r) => r.content)
+        );
+      } else {
+        const result = await this.deps.s3.getObject(agentId, fileName);
+        files[fileName] = result.content;
+      }
+    });
+    await Promise.all(fetchPromises);
+    return {
+      agentId,
+      files,
+      lastModifiedEpochMs: Date.now()
+    };
+  }
+  async writeFile(agentId, fileName, content) {
+    if (!isValidMarkdownFileName(fileName)) {
+      throw new Error(`Invalid markdown file name: ${fileName}`);
+    }
+    await this.deps.s3.putObject(agentId, fileName, content);
+    if (this.deps.cache) {
+      await this.deps.cache.invalidate(agentId, fileName);
+    }
+  }
+  async listWorkspaces() {
+    const keys = await this.deps.s3.listObjects("");
+    const agentIds = /* @__PURE__ */ new Set();
+    for (const key of keys) {
+      const parts = key.split("/");
+      if (parts[0]) agentIds.add(parts[0]);
+    }
+    return [...agentIds];
+  }
+  async deleteWorkspace(agentId) {
+    const keys = await this.deps.s3.listObjects(`${agentId}/`);
+    await Promise.all(
+      keys.map((key) => {
+        const fileName = key.split("/")[1];
+        if (fileName && isValidMarkdownFileName(fileName)) {
+          return this.deps.s3.deleteObject(agentId, fileName);
+        }
+        return Promise.resolve();
+      })
+    );
+    if (this.deps.cache) {
+      await this.deps.cache.invalidateWorkspace(agentId);
+    }
+  }
+};
+
+// src/r2-adapter.ts
+var R2BucketAdapter = class {
+  static {
+    __name(this, "R2BucketAdapter");
+  }
+  bucket;
+  constructor(bucket) {
+    this.bucket = bucket;
+  }
+  async getObject(agentId, fileName) {
+    const key = `${agentId}/${fileName}`;
+    try {
+      const object = await this.bucket.get(key);
+      if (!object) return { content: null };
+      return {
+        content: await object.text(),
+        lastModified: object.uploaded?.toISOString()
+      };
+    } catch (err) {
+      throw new Error(`Failed to fetch r2://${key}: ${err}`);
+    }
+  }
+  async putObject(agentId, fileName, content) {
+    const key = `${agentId}/${fileName}`;
+    await this.bucket.put(key, content, {
+      httpMetadata: { contentType: "text/markdown; charset=utf-8" }
+    });
+  }
+  async deleteObject(agentId, fileName) {
+    const key = `${agentId}/${fileName}`;
+    await this.bucket.delete(key);
+  }
+  async listObjects(prefix) {
+    const objects = await this.bucket.list({ prefix });
+    return objects.objects.map((o) => o.key);
+  }
+};
+function createHydrator(env) {
+  const storage = new R2BucketAdapter(env.WORKSPACE_BUCKET);
+  const cache = new KVCacheManager(env.VFS_CACHE);
+  return new WorkspaceHydrator({ s3: storage, cache });
+}
+__name(createHydrator, "createHydrator");
+
 // src/routes/workspace.ts
 var workspaceRoutes = new Hono2();
-function getHydrator(env) {
-  const s3 = new S3FetchClient({
-    r2Endpoint: "https://r2.cloudflarestorage.com",
-    // Will be overridden by R2 binding in prod
-    r2Bucket: "midas-workspaces-dev"
-  });
-  const cache = new KVCacheManager(env.VFS_CACHE);
-  return new WorkspaceHydrator({ s3, cache });
-}
-__name(getHydrator, "getHydrator");
 workspaceRoutes.get("/", async (c) => {
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   const agentIds = await hydrator.listWorkspaces();
   return c.json({ success: true, data: agentIds });
 });
 workspaceRoutes.get("/:agentId", async (c) => {
   const agentId = c.req.param("agentId");
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
   return c.json({ success: true, data: workspace });
 });
@@ -7459,7 +7398,7 @@ workspaceRoutes.get("/:agentId/files/:fileName", async (c) => {
   if (!isValidMarkdownFileName(fileName)) {
     return c.json({ success: false, error: { code: "INVALID_FILE", message: `Invalid file: ${fileName}` } }, 400);
   }
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
   return c.json({ success: true, data: { agentId, fileName, content: workspace.files[fileName] } });
 });
@@ -7469,7 +7408,7 @@ workspaceRoutes.put("/:agentId/files/:fileName", async (c) => {
     return c.json({ success: false, error: { code: "INVALID_FILE", message: `Invalid file: ${fileName}` } }, 400);
   }
   const body = await c.req.json();
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   const existing = await hydrator.readWorkspace(agentId);
   const oldContent = existing.files[fileName] ?? "";
   await hydrator.writeFile(agentId, fileName, body.content);
@@ -7482,13 +7421,13 @@ workspaceRoutes.put("/:agentId/files/:fileName", async (c) => {
 });
 workspaceRoutes.delete("/:agentId", async (c) => {
   const agentId = c.req.param("agentId");
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   await hydrator.deleteWorkspace(agentId);
   return c.json({ success: true, data: { deleted: agentId } });
 });
 workspaceRoutes.post("/:agentId/reset-memory", async (c) => {
   const agentId = c.req.param("agentId");
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
   await hydrator.writeFile(agentId, "memory.md", "# Memory\n\n*Episodic memory has been reset.*\n");
   return c.json({
@@ -8689,12 +8628,7 @@ chatRoutes.post("/:agentId", async (c) => {
   if (!message) {
     return c.json({ success: false, error: { code: "MISSING_MESSAGE", message: "Message is required" } }, 400);
   }
-  const s3 = new S3FetchClient({
-    r2Endpoint: "https://r2.cloudflarestorage.com",
-    r2Bucket: "midas-workspaces-dev"
-  });
-  const cache = new KVCacheManager(c.env.VFS_CACHE);
-  const hydrator = new WorkspaceHydrator({ s3, cache });
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
   const { compiled } = buildPrompt({ workspace, userMessage: message });
   const toolsMd = workspace.files["tools.md"];
@@ -8729,12 +8663,7 @@ chatRoutes.post("/:agentId/stream", async (c) => {
   if (!message) {
     return c.json({ success: false, error: { code: "MISSING_MESSAGE", message: "Message is required" } }, 400);
   }
-  const s3 = new S3FetchClient({
-    r2Endpoint: "https://r2.cloudflarestorage.com",
-    r2Bucket: "midas-workspaces-dev"
-  });
-  const cache = new KVCacheManager(c.env.VFS_CACHE);
-  const hydrator = new WorkspaceHydrator({ s3, cache });
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
   const { compiled } = buildPrompt({ workspace, userMessage: message });
   const { instance: aiProvider, config, provider, model } = await resolveProvider(
@@ -9133,17 +9062,8 @@ mcpRoutes.post("/execute", async (c) => {
 
 // src/routes/agents.ts
 var agentRoutes = new Hono2();
-function getHydrator2(env) {
-  const s3 = new S3FetchClient({
-    r2Endpoint: "https://r2.cloudflarestorage.com",
-    r2Bucket: "midas-workspaces-dev"
-  });
-  const cache = new KVCacheManager(env.VFS_CACHE);
-  return new WorkspaceHydrator({ s3, cache });
-}
-__name(getHydrator2, "getHydrator");
 agentRoutes.get("/", async (c) => {
-  const hydrator = getHydrator2(c.env);
+  const hydrator = createHydrator(c.env);
   const agentIds = await hydrator.listWorkspaces();
   const agents = await Promise.all(
     agentIds.map(async (id) => {
@@ -9164,7 +9084,7 @@ agentRoutes.get("/", async (c) => {
 agentRoutes.post("/spawn", async (c) => {
   const body = await c.req.json();
   const agentId = `sub-${body.name.toLowerCase().replace(/[^a-z0-9-]/g, "-")}`;
-  const hydrator = getHydrator2(c.env);
+  const hydrator = createHydrator(c.env);
   await hydrator.writeFile(
     agentId,
     "soul.md",
@@ -9208,7 +9128,7 @@ ${body.description ?? "Specialized sub-agent"}
 });
 agentRoutes.get("/:agentId/diff", async (c) => {
   const agentId = c.req.param("agentId");
-  const hydrator = getHydrator2(c.env);
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
   return c.json({
     success: true,
@@ -9224,7 +9144,7 @@ agentRoutes.get("/:agentId/diff", async (c) => {
 });
 agentRoutes.delete("/:agentId", async (c) => {
   const agentId = c.req.param("agentId");
-  const hydrator = getHydrator2(c.env);
+  const hydrator = createHydrator(c.env);
   await hydrator.deleteWorkspace(agentId);
   return c.json({ success: true, data: { deleted: agentId } });
 });

@@ -1,26 +1,15 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import { WorkspaceHydrator } from '@midas/vfs';
-import { S3FetchClient } from '@midas/vfs';
-import { KVCacheManager } from '@midas/vfs';
 import { generateDiff } from '@midas/compiler';
+import { createHydrator } from '../r2-adapter.js';
 import type { Env } from '../../worker-configuration.d.ts';
 
 const agentRoutes = new Hono<{ Bindings: Env }>();
 
-function getHydrator(env: Env) {
-  const s3 = new S3FetchClient({
-    r2Endpoint: 'https://r2.cloudflarestorage.com',
-    r2Bucket: 'midas-workspaces-dev',
-  });
-  const cache = new KVCacheManager(env.VFS_CACHE);
-  return new WorkspaceHydrator({ s3, cache });
-}
-
 // List all agents
 agentRoutes.get('/', async (c) => {
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   const agentIds = await hydrator.listWorkspaces();
 
   // Fetch basic info for each agent
@@ -56,7 +45,7 @@ agentRoutes.post('/spawn', async (c) => {
 
   const agentId = `sub-${body.name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}`;
 
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
 
   // Write baseline files
   await hydrator.writeFile(
@@ -95,7 +84,7 @@ agentRoutes.post('/spawn', async (c) => {
 // Get agent diff log
 agentRoutes.get('/:agentId/diff', async (c) => {
   const agentId = c.req.param('agentId');
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
 
   // For now, read current state. In production, compare with stored baseline.
   const workspace = await hydrator.readWorkspace(agentId);
@@ -116,7 +105,7 @@ agentRoutes.get('/:agentId/diff', async (c) => {
 // Delete agent
 agentRoutes.delete('/:agentId', async (c) => {
   const agentId = c.req.param('agentId');
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   await hydrator.deleteWorkspace(agentId);
   return c.json({ success: true, data: { deleted: agentId } });
 });

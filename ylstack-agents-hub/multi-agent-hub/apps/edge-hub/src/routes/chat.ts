@@ -1,10 +1,8 @@
 import { Hono } from 'hono';
 import { createProviderFromSettings } from '@midas/ai-provider';
-import { WorkspaceHydrator } from '@midas/vfs';
-import { S3FetchClient } from '@midas/vfs';
-import { KVCacheManager } from '@midas/vfs';
 import { buildPrompt, extractToolDefinitions } from '@midas/compiler';
 import { SettingsStore } from '../settings-store.js';
+import { createHydrator } from '../r2-adapter.js';
 import type { Env } from '../../worker-configuration.d.ts';
 
 const chatRoutes = new Hono<{ Bindings: Env }>();
@@ -80,12 +78,7 @@ chatRoutes.post('/:agentId', async (c) => {
     return c.json({ success: false, error: { code: 'MISSING_MESSAGE', message: 'Message is required' } }, 400);
   }
 
-  const s3 = new S3FetchClient({
-    r2Endpoint: 'https://r2.cloudflarestorage.com',
-    r2Bucket: 'midas-workspaces-dev',
-  });
-  const cache = new KVCacheManager(c.env.VFS_CACHE);
-  const hydrator = new WorkspaceHydrator({ s3, cache });
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
 
   const { compiled } = buildPrompt({ workspace, userMessage: message });
@@ -131,12 +124,7 @@ chatRoutes.post('/:agentId/stream', async (c) => {
     return c.json({ success: false, error: { code: 'MISSING_MESSAGE', message: 'Message is required' } }, 400);
   }
 
-  const s3 = new S3FetchClient({
-    r2Endpoint: 'https://r2.cloudflarestorage.com',
-    r2Bucket: 'midas-workspaces-dev',
-  });
-  const cache = new KVCacheManager(c.env.VFS_CACHE);
-  const hydrator = new WorkspaceHydrator({ s3, cache });
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
 
   const { compiled } = buildPrompt({ workspace, userMessage: message });

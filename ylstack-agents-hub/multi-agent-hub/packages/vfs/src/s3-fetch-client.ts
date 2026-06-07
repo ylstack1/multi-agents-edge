@@ -1,11 +1,11 @@
 import type { MarkdownFileName } from '@midas/contracts';
-import type { VFSConfig, Fetcher } from './types.js';
+import type { VFSConfig, Fetcher, StorageBackend } from './types.js';
 
 /**
  * Pure HTTP S3-compatible client using only Web Fetch and crypto.subtle.
  * No Node.js SDK dependencies. Safe for V8 isolates.
  */
-export class S3FetchClient {
+export class S3FetchClient implements StorageBackend {
   private config: VFSConfig;
   private fetch: Fetcher;
 

@@ -2,27 +2,15 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { MARKDOWN_FILE_NAMES, isValidMarkdownFileName } from '@midas/contracts';
-import { WorkspaceHydrator } from '@midas/vfs';
-import { S3FetchClient } from '@midas/vfs';
-import { KVCacheManager } from '@midas/vfs';
 import { generateDiff, annotateDiff } from '@midas/compiler';
+import { createHydrator } from '../r2-adapter.js';
 import type { Env } from '../../worker-configuration.d.ts';
 
 const workspaceRoutes = new Hono<{ Bindings: Env }>();
 
-// Helper to create hydrator
-function getHydrator(env: Env) {
-  const s3 = new S3FetchClient({
-    r2Endpoint: 'https://r2.cloudflarestorage.com', // Will be overridden by R2 binding in prod
-    r2Bucket: 'midas-workspaces-dev',
-  });
-  const cache = new KVCacheManager(env.VFS_CACHE);
-  return new WorkspaceHydrator({ s3, cache });
-}
-
 // List all workspaces
 workspaceRoutes.get('/', async (c) => {
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   const agentIds = await hydrator.listWorkspaces();
   return c.json({ success: true, data: agentIds });
 });
@@ -30,7 +18,7 @@ workspaceRoutes.get('/', async (c) => {
 // Get full workspace for an agent
 workspaceRoutes.get('/:agentId', async (c) => {
   const agentId = c.req.param('agentId');
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
   return c.json({ success: true, data: workspace });
 });
@@ -41,7 +29,7 @@ workspaceRoutes.get('/:agentId/files/:fileName', async (c) => {
   if (!isValidMarkdownFileName(fileName)) {
     return c.json({ success: false, error: { code: 'INVALID_FILE', message: `Invalid file: ${fileName}` } }, 400);
   }
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
   return c.json({ success: true, data: { agentId, fileName, content: workspace.files[fileName] } });
 });
@@ -54,7 +42,7 @@ workspaceRoutes.put('/:agentId/files/:fileName', async (c) => {
   }
 
   const body = await c.req.json<{ content: string; reasoning?: string }>();
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
 
   // Read existing content for diff
   const existing = await hydrator.readWorkspace(agentId);
@@ -76,7 +64,7 @@ workspaceRoutes.put('/:agentId/files/:fileName', async (c) => {
 // Delete workspace
 workspaceRoutes.delete('/:agentId', async (c) => {
   const agentId = c.req.param('agentId');
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   await hydrator.deleteWorkspace(agentId);
   return c.json({ success: true, data: { deleted: agentId } });
 });
@@ -84,7 +72,7 @@ workspaceRoutes.delete('/:agentId', async (c) => {
 // Reset memory (clear memory.md, preserve soul/identity)
 workspaceRoutes.post('/:agentId/reset-memory', async (c) => {
   const agentId = c.req.param('agentId');
-  const hydrator = getHydrator(c.env);
+  const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
 
   await hydrator.writeFile(agentId, 'memory.md', '# Memory\n\n*Episodic memory has been reset.*\n');

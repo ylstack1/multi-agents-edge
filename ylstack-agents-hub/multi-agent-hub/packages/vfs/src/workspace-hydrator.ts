@@ -1,10 +1,10 @@
 import type { AgentWorkspace, MarkdownFileName } from '@midas/contracts';
 import { MARKDOWN_FILE_NAMES, isValidMarkdownFileName } from '@midas/contracts';
-import { S3FetchClient } from './s3-fetch-client.js';
+import type { StorageBackend } from './types.js';
 import { KVCacheManager } from './kv-cache-manager.js';
 
 export interface HydratorDeps {
-  s3: S3FetchClient;
+  s3: StorageBackend;
   cache?: KVCacheManager;
 }
 

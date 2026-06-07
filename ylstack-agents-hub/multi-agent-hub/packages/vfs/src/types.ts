@@ -40,3 +40,14 @@ export interface VFSListResult {
 }
 
 export type Fetcher = typeof fetch;
+
+/**
+ * Storage backend interface used by WorkspaceHydrator.
+ * Can be implemented by S3FetchClient (HTTP S3) or R2BucketAdapter (Workers R2 binding).
+ */
+export interface StorageBackend {
+  getObject(agentId: string, fileName: string): Promise<{ content: string | null; lastModified?: string }>;
+  putObject(agentId: string, fileName: string, content: string): Promise<void>;
+  deleteObject(agentId: string, fileName: string): Promise<void>;
+  listObjects(prefix: string): Promise<string[]>;
+}
