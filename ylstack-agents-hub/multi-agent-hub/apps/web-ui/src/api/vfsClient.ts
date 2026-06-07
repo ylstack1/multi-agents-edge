@@ -160,12 +160,31 @@ export async function sendChat(
   agentId: string,
   message: string,
 ): Promise<ChatResponse> {
-  return request<ChatResponse>(`/chat/${encodeURIComponent(agentId)}`, {
+  const raw = await request<{
+    success: boolean;
+    data: {
+      content: string;
+      toolCalls?: Array<{
+        name: string;
+        arguments: string;
+        result?: string;
+      }>;
+      finishReason?: string;
+      provider?: string;
+      model?: string;
+    };
+  }>(`/chat/${encodeURIComponent(agentId)}`, {
     method: "POST",
     body: JSON.stringify({
       message,
     } satisfies ChatRequest),
   });
+  return {
+    id: Math.random().toString(36).substring(2, 11),
+    message: raw.data.content,
+    role: "assistant",
+    toolCalls: raw.data.toolCalls,
+  };
 }
 
 export async function streamChat(
