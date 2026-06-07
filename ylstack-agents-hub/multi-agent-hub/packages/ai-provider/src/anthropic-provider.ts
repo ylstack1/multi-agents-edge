@@ -1,5 +1,5 @@
-import type { LLMMessage, LLMStreamChunk, LLMConfig } from '@midas/contracts';
-import type { AIProvider, CompletionRequest, CompletionResponse, ToolDefinition } from './types.js';
+import type { LLMStreamChunk } from '@midas/contracts';
+import type { AIProvider, CompletionRequest, CompletionResponse } from './types.js';
 
 /**
  * Anthropic provider implementation.

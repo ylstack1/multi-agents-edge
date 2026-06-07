@@ -268,7 +268,7 @@ interface AgentCardProps {
 }
 
 function AgentCard({ agent, onOpen, onChat }: AgentCardProps) {
-  const config = statusConfig[agent.status] ?? statusConfig.idle;
+  const config = (statusConfig[agent.status] ?? statusConfig.idle)!;
 
   return (
     <div className="rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/30">

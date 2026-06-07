@@ -1,6 +1,6 @@
 import type { MCPToolDefinition, MCPToolResult } from './types.js';
 import { SSEConsumer } from './sse-consumer.js';
-import { parseJSONRPCMessage, createRequest } from './json-rpc-parser.js';
+import { parseJSONRPCMessage } from './json-rpc-parser.js';
 import { discoverTools } from './schema-translator.js';
 import { withTimeout } from './timeout-controller.js';
 
@@ -92,7 +92,7 @@ export class MCPClient {
 
   private async executeToolCall(
     toolName: string,
-    args: Record<string, unknown>,
+    _args: Record<string, unknown>,
   ): Promise<MCPToolResult> {
     const startTime = Date.now();
     const consumer = new SSEConsumer();

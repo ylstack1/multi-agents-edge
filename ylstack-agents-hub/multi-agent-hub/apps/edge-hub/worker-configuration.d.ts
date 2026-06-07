@@ -1,4 +1,4 @@
-interface Env {
+export interface Env {
   // S3-compatible R2 bucket for workspace files
   WORKSPACE_BUCKET: R2Bucket;
 

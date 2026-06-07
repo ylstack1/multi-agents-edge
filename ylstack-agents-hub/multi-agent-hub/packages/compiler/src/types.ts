@@ -15,7 +15,7 @@ export const DEFAULT_CONCATENATION_ORDER = [
   'tools.md',
 ] as const;
 
-export const CANONICAL_FILE_HEADERS: Record<string, string> = {
+export const CANONICAL_FILE_HEADERS: Record<(typeof DEFAULT_CONCATENATION_ORDER)[number], string> = {
   'soul.md': '=== SOUL === Core Values & Tone',
   'identity.md': '=== IDENTITY === Role & Metadata',
   'user.md': '=== USER === Human Operator Context',

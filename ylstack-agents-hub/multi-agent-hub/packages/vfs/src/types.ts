@@ -1,4 +1,4 @@
-import type { AgentWorkspace, MarkdownFileName } from '@midas/contracts';
+import type { MarkdownFileName } from '@midas/contracts';
 
 export interface VFSConfig {
   r2Endpoint: string;

@@ -23,7 +23,7 @@ chatRoutes.post('/:agentId', async (c) => {
   // Hydrate workspace
   const s3 = new S3FetchClient({
     r2Endpoint: 'https://r2.cloudflarestorage.com',
-    r2Bucket: c.env.WORKSPACE_BUCKET.name,
+    r2Bucket: 'midas-workspaces-dev',
   });
   const cache = new KVCacheManager(c.env.VFS_CACHE);
   const hydrator = new WorkspaceHydrator({ s3, cache });
@@ -38,7 +38,7 @@ chatRoutes.post('/:agentId', async (c) => {
 
   // Extract tool definitions
   const toolsMd = workspace.files['tools.md'];
-  const toolDefinitions = extractToolDefinitions(toolsMd);
+  const toolDefinitions = extractToolDefinitions(toolsMd ?? null);
 
   // Create AI provider
   const aiProvider = createProvider(
@@ -94,7 +94,7 @@ chatRoutes.post('/:agentId/stream', async (c) => {
   // Hydrate workspace
   const s3 = new S3FetchClient({
     r2Endpoint: 'https://r2.cloudflarestorage.com',
-    r2Bucket: c.env.WORKSPACE_BUCKET.name,
+    r2Bucket: 'midas-workspaces-dev',
   });
   const cache = new KVCacheManager(c.env.VFS_CACHE);
   const hydrator = new WorkspaceHydrator({ s3, cache });

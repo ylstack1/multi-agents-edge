@@ -14,7 +14,7 @@ const workspaceRoutes = new Hono<{ Bindings: Env }>();
 function getHydrator(env: Env) {
   const s3 = new S3FetchClient({
     r2Endpoint: 'https://r2.cloudflarestorage.com', // Will be overridden by R2 binding in prod
-    r2Bucket: env.WORKSPACE_BUCKET.name,
+    r2Bucket: 'midas-workspaces-dev',
   });
   const cache = new KVCacheManager(env.VFS_CACHE);
   return new WorkspaceHydrator({ s3, cache });
