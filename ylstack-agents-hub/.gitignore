@@ -1,0 +1,5 @@
+# Root-level build artifacts (from agent scaffolding)
+Project-*.md
+image-*.png
+*.tar
+*.tar.gz
