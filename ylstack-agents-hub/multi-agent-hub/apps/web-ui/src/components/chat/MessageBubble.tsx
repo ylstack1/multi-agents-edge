@@ -51,7 +51,7 @@ const roleConfig = {
 
 /** Extract  tags from content, returning { cleaned, thinkContent } */
 function extractThinkTag(content: string): { cleaned: string; thinkContent: string | null } {
-  const match = content.match(/^<think>([\s\S]*?)<\/think>/);
+  const match = content.match(/<think>([\s\S]*?)<\/think>/);
   if (!match) return { cleaned: content, thinkContent: null };
   return {
     cleaned: content.replace(/<think>[\s\S]*?<\/think>/g, "").trim(),
