@@ -139,7 +139,7 @@ export async function resetMemory(agentId: string): Promise<void> {
 // ─── Chat Operations ─────────────────────────────────────────────
 
 export interface ChatRequest {
-  agentId: string;
+  agentId?: string;
   message: string;
   stream?: boolean;
 }
@@ -160,10 +160,9 @@ export async function sendChat(
   agentId: string,
   message: string,
 ): Promise<ChatResponse> {
-  return request<ChatResponse>("/chat", {
+  return request<ChatResponse>(`/chat/${encodeURIComponent(agentId)}`, {
     method: "POST",
     body: JSON.stringify({
-      agentId,
       message,
     } satisfies ChatRequest),
   });
@@ -174,11 +173,11 @@ export async function streamChat(
   message: string,
   onChunk: (chunk: string) => void,
 ): Promise<void> {
-  const url = `${API_BASE}/chat`;
+  const url = `${API_BASE}/chat/${encodeURIComponent(agentId)}`;
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${getSessionToken()}` },
-    body: JSON.stringify({ agentId, message, stream: true } satisfies ChatRequest),
+    body: JSON.stringify({ message, stream: true } satisfies ChatRequest),
   });
 
   if (!response.ok) {
