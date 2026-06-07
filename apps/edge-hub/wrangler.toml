@@ -1,0 +1,48 @@
+name = "multi-agent-hub"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Worker Configuration
+workers_dev = true
+
+# Static Assets (web-ui SPA)
+[assets]
+directory = "../web-ui/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# KV Namespace for VFS cache
+[[kv_namespaces]]
+binding = "VFS_CACHE"
+id = "fdb909ff91d640c8b69b6043476c4064"
+
+# R2 Bucket for markdown workspace storage
+[[r2_buckets]]
+binding = "WORKSPACE_BUCKET"
+bucket_name = "midas-workspaces"
+preview_bucket_name = "midas-workspaces-dev"
+
+# Environment Variables (set in .dev.vars locally, or via wrangler secret in prod)
+# AI Provider Keys (legacy — use settings UI for management)
+[vars]
+ENVIRONMENT = "development"
+LOG_LEVEL = "debug"
+
+# Workers AI binding (default provider, no API key needed)
+[ai]
+binding = "AI"
+
+# Logging & Observability
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+# Environment-specific overrides
+[env.production]
+name = "multi-agent-hub"
+vars = { ENVIRONMENT = "production", LOG_LEVEL = "info" }
+
+[env.staging]
+name = "multi-agent-hub-staging"
+vars = { ENVIRONMENT = "staging", LOG_LEVEL = "debug" }

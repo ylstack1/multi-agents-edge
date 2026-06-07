@@ -1,0 +1,68 @@
+[
+  {
+    "name": "search_web",
+    "description": "Search the web for current information on any topic.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "The search query"
+        },
+        "max_results": {
+          "type": "number",
+          "description": "Maximum number of results to return",
+          "default": 5
+        }
+      },
+      "required": ["query"]
+    }
+  },
+  {
+    "name": "read_url",
+    "description": "Fetch and read the content of a URL.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The URL to read"
+        }
+      },
+      "required": ["url"]
+    }
+  },
+  {
+    "name": "generate_image",
+    "description": "Generate an image from a text description.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "Text description of the image to generate"
+        },
+        "style": {
+          "type": "string",
+          "description": "Image style (realistic, cartoon, watercolor)",
+          "enum": ["realistic", "cartoon", "watercolor"]
+        }
+      },
+      "required": ["prompt"]
+    }
+  },
+  {
+    "name": "calculate",
+    "description": "Perform mathematical calculations.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "expression": {
+          "type": "string",
+          "description": "Mathematical expression to evaluate"
+        }
+      },
+      "required": ["expression"]
+    }
+  }
+]
