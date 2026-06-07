@@ -12,7 +12,6 @@ import {
   X,
   Loader2,
   RefreshCw,
-  Globe,
   Key,
   Sliders,
   Webhook,
@@ -49,7 +48,7 @@ function Section({ title, description, children }: { title: React.ReactNode; des
   );
 }
 
-function Toggle({ enabled, onChange, label }: { enabled: boolean; onChange: (v: boolean) => void; label?: string }) {
+function Toggle({ enabled, onChange, label: _label }: { enabled: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
     <button
       type="button"
@@ -377,7 +376,7 @@ export function SettingsPage() {
                       await api.updateProvider(p.provider, { enabled: v });
                       showSuccess(`"${p.provider}" ${v ? "enabled" : "disabled"}`);
                       loadProviders();
-                    } catch (err) {
+                    } catch {
                       showError("Failed to toggle provider");
                     }
                   }}
@@ -976,7 +975,7 @@ export function SettingsPage() {
       try {
         const bot = bots.find((b) => b.botId === botId);
         const mappings = { ...(bot?.agentMappings || {}) };
-        delete mappings[chatId];
+        Reflect.deleteProperty(mappings, chatId);
 
         const updatedBots = bots.map((b) =>
           b.botId === botId ? { ...b, agentMappings: mappings } : b

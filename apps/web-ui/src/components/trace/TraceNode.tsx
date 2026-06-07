@@ -8,7 +8,6 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
-  Loader2,
 } from "lucide-react";
 import type { TraceNodeDto } from "@/api/vfsClient";
 
@@ -119,7 +118,7 @@ export function TraceNode({ node, depth = 0 }: TraceNodeProps) {
       {/* Children */}
       {expanded && hasChildren && (
         <div className="mt-1 space-y-1">
-          {node.children!.map((child) => (
+          {(node.children as TraceNodeDto[]).map((child) => (
             <TraceNode key={child.id} node={child} depth={depth + 1} />
           ))}
         </div>

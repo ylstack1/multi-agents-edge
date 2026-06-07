@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { IngressSource } from './agent-types.js';
 
 export const IngressPayloadSchema = z.object({
   sessionId: z.string(),

@@ -63,10 +63,12 @@ export class DeferredFlusher {
     const successful: FlushOperation[] = [];
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
+      const op = ops[i];
+      if (!op) continue;
       if (result && result.status === 'fulfilled') {
-        successful.push(ops[i]!);
+        successful.push(op);
       } else {
-        console.error(`Deferred flush failed for ${ops[i]!.agentId}/${ops[i]!.fileName}:`, result?.reason);
+        console.error(`Deferred flush failed for ${op.agentId}/${op.fileName}:`, result?.reason);
       }
     }
 

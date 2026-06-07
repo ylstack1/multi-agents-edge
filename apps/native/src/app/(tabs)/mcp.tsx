@@ -8,7 +8,6 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
-  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../../store/appStore';
@@ -40,7 +39,7 @@ export default function MCPScreen() {
     try {
       const data = await api.fetchMCPEndpoints();
       useAppStore.getState().setMcpEndpoints(data);
-    } catch (err: unknown) {
+    } catch {
       // Silently fail - endpoints may not exist yet
     } finally {
       setIsLoading(false);

@@ -7,10 +7,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useSegments } from 'expo-router';
 import { useAppStore } from '../../store/appStore';
 import MessageBubble from '../../components/MessageBubble';
 import ChatInput from '../../components/ChatInput';
@@ -152,7 +150,7 @@ function ChatView({ agentId }: { agentId: string }) {
   const theme = useAppStore((s) => s.theme);
   const isDark = theme === 'dark';
   const flatListRef = useRef<FlatList<Message>>(null);
-  const { messages, isLoading, isSending, sendMessage, clearConversation } = useChat(agentId);
+  const { messages, isLoading, isSending, sendMessage } = useChat(agentId);
   const [hasScrolled, setHasScrolled] = useState(false);
 
   useEffect(() => {

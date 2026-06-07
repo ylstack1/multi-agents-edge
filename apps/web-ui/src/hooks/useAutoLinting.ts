@@ -44,7 +44,7 @@ export function useAutoLinting() {
     const yamlFrontmatterRegex = /^---\n([\s\S]*?)\n---/;
     const yamlMatch = content.match(yamlFrontmatterRegex);
     if (yamlMatch) {
-      const fmLines = yamlMatch[1]!.split("\n");
+      const fmLines = (yamlMatch[1] as string).split("\n");
       fmLines.forEach((line, idx) => {
         const trimmed = line.trim();
         if (trimmed && !trimmed.includes(":")) {

@@ -5,8 +5,6 @@ import { cn } from "@/lib/utils";
 import {
   Radio,
   Loader2,
-  CheckCircle2,
-  XCircle,
   Wifi,
   WifiOff,
   Search,

@@ -45,6 +45,7 @@ const RETRY_DELAY_MS = 1000;
 
 function getBaseUrl(): string {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useAppStore } = require('../store/appStore');
     const store = useAppStore.getState?.();
     return store?.apiUrl || 'http://localhost:8787';
@@ -151,15 +152,15 @@ export async function updateAgentWorkspace(
   );
 }
 
-export async function resetAgentMemory(agentId: string): Promise<void> {
-  return request<void>(
+export async function resetAgentMemory(agentId: string): Promise<undefined> {
+  return request<undefined>(
     'DELETE',
     `/api/agents/${encodeURIComponent(agentId)}/workspace/memory`
   );
 }
 
-export async function deleteAgent(id: string): Promise<void> {
-  return request<void>('DELETE', `/api/agents/${encodeURIComponent(id)}`);
+export async function deleteAgent(id: string): Promise<undefined> {
+  return request<undefined>('DELETE', `/api/agents/${encodeURIComponent(id)}`);
 }
 
 // Chat
@@ -215,8 +216,8 @@ export async function discoverMCPTools(
   );
 }
 
-export async function deleteMCPEndpoint(id: string): Promise<void> {
-  return request<void>(
+export async function deleteMCPEndpoint(id: string): Promise<undefined> {
+  return request<undefined>(
     'DELETE',
     `/api/mcp/endpoints/${encodeURIComponent(id)}`
   );

@@ -31,8 +31,8 @@ const lineStyles: Record<
   },
 };
 
-export function LineDiff({ line, lineIndex }: LineDiffProps) {
-  const style = (lineStyles[line.type] ?? lineStyles.context)!;
+export function LineDiff({ line, lineIndex: _lineIndex }: LineDiffProps) {
+  const style = (lineStyles[line.type] ?? lineStyles.context) as { bg: string; prefix: string; textColor: string; gutterBg: string };
 
   return (
     <tr className={cn("transition-colors hover:brightness-110", style.bg)}>

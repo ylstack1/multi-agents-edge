@@ -62,8 +62,6 @@ export default function Dashboard() {
   const activeCount = agents.filter((a) => a.status === "active").length;
   const errorCount = agents.filter((a) => a.status === "error").length;
   const totalRequests = chartData.reduce((s, d) => s + d.requests, 0);
-  const totalErrors = chartData.reduce((s, d) => s + d.errors, 0);
-
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -269,7 +267,7 @@ interface AgentCardProps {
 }
 
 function AgentCard({ agent, onOpen, onChat }: AgentCardProps) {
-  const config = (statusConfig[agent.status] ?? statusConfig.idle)!;
+  const config = (statusConfig[agent.status] ?? statusConfig.idle) as { bg: string; border: string; dot: string; label: string };
 
   return (
     <div className={cn(

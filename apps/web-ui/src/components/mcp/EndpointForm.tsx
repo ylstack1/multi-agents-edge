@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useWorkspaceStore, type McpEndpoint } from "@/store/workspaceStore";
 import { useAddMcpEndpoint, useDeleteMcpEndpoint } from "@/hooks/useVFSClient";
-import { cn } from "@/lib/utils";
 import {
   Plus,
   Trash2,
@@ -28,7 +27,7 @@ export function EndpointForm() {
     if (!name.trim() || !url.trim()) return;
 
     try {
-      const created = await addEndpointMutation.mutateAsync({
+      await addEndpointMutation.mutateAsync({
         name: name.trim(),
         url: url.trim(),
         enabled: true,

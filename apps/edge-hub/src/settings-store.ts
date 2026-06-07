@@ -50,7 +50,7 @@ export class SettingsStore {
   /** Delete a provider setting (reset built-in to defaults) */
   async deleteProvider(provider: string): Promise<void> {
     const settings = await this.load();
-    delete settings.providers[provider];
+    Reflect.deleteProperty(settings.providers, provider);
     await this.save(settings);
   }
 
@@ -64,7 +64,7 @@ export class SettingsStore {
   /** Remove a custom provider */
   async deleteCustomProvider(provider: string): Promise<void> {
     const settings = await this.load();
-    delete settings.customProviders[provider];
+    Reflect.deleteProperty(settings.customProviders, provider);
     await this.save(settings);
   }
 
@@ -167,7 +167,7 @@ export class SettingsStore {
   /** Delete an integration */
   async deleteIntegration(type: string): Promise<void> {
     const settings = await this.load();
-    delete settings.integrations[type];
+    Reflect.deleteProperty(settings.integrations, type);
     await this.save(settings);
   }
 

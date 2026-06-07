@@ -1,11 +1,9 @@
 import React, { useState } from "react";
-import { cn } from "@/lib/utils";
 import {
   TestTube,
   Plus,
   Trash2,
   Play,
-  X,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";

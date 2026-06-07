@@ -42,7 +42,7 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onMobileClose
   // Close mobile drawer on route change
   useEffect(() => {
     if (mobileOpen) onMobileClose();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // effect intended to run once on mount
   }, [location.pathname]);
 
   const sidebarContent = (

@@ -1,6 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, XCircle, Clock } from "lucide-react";
+import { XCircle, Clock } from "lucide-react";
 
 interface ErrorHighlightProps {
   type: "error" | "timeout";

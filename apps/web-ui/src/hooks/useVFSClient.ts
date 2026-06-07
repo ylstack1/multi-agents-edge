@@ -18,10 +18,6 @@ import {
   getTrace,
   type AgentDto,
   type WorkspaceDto,
-  type FileDto,
-  type ChatResponse,
-  type DiffEntry,
-  type TraceNodeDto,
 } from "@/api/vfsClient";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 

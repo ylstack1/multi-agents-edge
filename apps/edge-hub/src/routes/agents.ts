@@ -1,7 +1,4 @@
 import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
-import { generateDiff } from '@midas/compiler';
 import { createHydrator } from '../r2-adapter.js';
 import type { Env } from '../../worker-configuration.d.ts';
 

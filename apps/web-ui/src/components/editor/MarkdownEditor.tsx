@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { useWorkspaceStore, type WorkspaceFile } from "@/store/workspaceStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import { useWorkspace, useSaveFile, useResetMemory } from "@/hooks/useVFSClient";
 import { useAutoLinting } from "@/hooks/useAutoLinting";
 import { EditorToolbar } from "./EditorToolbar";

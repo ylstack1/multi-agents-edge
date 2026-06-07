@@ -224,7 +224,7 @@ export class SystemToolsController {
   }
 
   private async spawnAgent(args: Record<string, unknown>): Promise<SystemToolResult> {
-    const { name, description, soul, identity, tools, reasoning } = args as {
+    const { name, soul, identity, tools, reasoning } = args as {
       name: string;
       description?: string;
       soul?: string;

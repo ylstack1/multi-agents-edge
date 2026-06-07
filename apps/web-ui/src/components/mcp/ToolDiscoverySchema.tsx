@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { useWorkspaceStore, type McpEndpoint, type McpTool } from "@/store/workspaceStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import { useDiscoverTools } from "@/hooks/useVFSClient";
-import { cn } from "@/lib/utils";
 import {
   Puzzle,
   Search,

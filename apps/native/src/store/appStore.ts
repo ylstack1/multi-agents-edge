@@ -37,7 +37,7 @@ const initialState = {
   isOnline: false,
 };
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set, _get) => ({
   ...initialState,
 
   setApiUrl: (apiUrl: string) => set({ apiUrl }),

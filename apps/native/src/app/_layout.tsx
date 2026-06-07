@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAppStore } from '../store/appStore';
 
@@ -22,15 +22,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-function LoadingScreen() {
-  return (
-    <View className="flex-1 bg-hub-dark items-center justify-center">
-      <ActivityIndicator size="large" color="#533483" />
-      <Text className="text-hub-text mt-4 text-base">Loading Multi-Agent Hub...</Text>
-    </View>
-  );
-}
 
 function RootLayoutNav() {
   const theme = useAppStore((s) => s.theme);

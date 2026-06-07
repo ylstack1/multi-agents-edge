@@ -61,8 +61,8 @@ export function createProviderFromSettings(
   ai?: any,
 ): AIProvider {
   // Built-in provider
-  if (registry[settings.provider]) {
-    const Constructor = registry[settings.provider]!;
+  const Constructor = registry[settings.provider];
+  if (Constructor) {
     const config: ProviderConfig = {
       apiKey: settings.apiKey,
       baseUrl: settings.baseUrl,

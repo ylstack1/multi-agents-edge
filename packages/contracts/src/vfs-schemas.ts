@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { MARKDOWN_FILE_NAMES } from './identifiers.js';
 
 export const AgentWorkspaceSchema = z.object({
   agentId: z.string().min(1),

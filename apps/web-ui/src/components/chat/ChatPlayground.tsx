@@ -12,7 +12,6 @@ import {
   MessageSquare,
   Eye,
   EyeOff,
-  Terminal,
   ChevronDown,
   Plus,
   X,
@@ -55,7 +54,7 @@ export function ChatPlayground() {
 
   const chatMessages = getChatMessages(selectedAgentId);
   const [showInspector, setShowInspector] = useState(false);
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [selectedMessageId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
@@ -88,7 +87,7 @@ export function ChatPlayground() {
       const current = getChatMessages(selectedAgentId);
       const idx = current.findIndex((m) => m.id === streamingMsgRef.current?.id);
       if (idx === -1) return;
-      const existing = current[idx]!;
+      const existing = current[idx] as ChatMessage;
       const updated = [...current];
       updated[idx] = {
         id: existing.id,

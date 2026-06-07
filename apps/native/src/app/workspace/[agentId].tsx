@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -37,7 +36,7 @@ export default function WorkspaceScreen() {
   const theme = useAppStore((s) => s.theme);
   const isDark = theme === 'dark';
 
-  const { agent, isLoading, refetch } = useAgent(agentId ?? '');
+  const { agent, isLoading } = useAgent(agentId ?? '');
   const { updateWorkspace, isUpdatingWorkspace, resetMemory, isResettingMemory } = useAgents();
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('soul');

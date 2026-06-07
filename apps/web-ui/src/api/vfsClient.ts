@@ -78,8 +78,8 @@ export async function createAgent(
   });
 }
 
-export async function deleteAgent(id: string): Promise<void> {
-  return request<void>(`/agents/${encodeURIComponent(id)}`, {
+export async function deleteAgent(id: string): Promise<undefined> {
+  return request<undefined>(`/agents/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }
@@ -260,8 +260,8 @@ export async function addMcpEndpoint(
   });
 }
 
-export async function deleteMcpEndpoint(id: string): Promise<void> {
-  return request<void>(`/mcp/endpoints/${encodeURIComponent(id)}`, {
+export async function deleteMcpEndpoint(id: string): Promise<undefined> {
+  return request<undefined>(`/mcp/endpoints/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }

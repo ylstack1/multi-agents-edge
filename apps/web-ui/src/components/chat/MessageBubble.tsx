@@ -10,7 +10,6 @@ import {
   Terminal,
   ChevronDown,
   ChevronRight,
-  Loader2,
 } from "lucide-react";
 import { formatTimestamp } from "@/lib/utils";
 

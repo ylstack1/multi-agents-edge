@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { MCPClient, discoverTools } from '@midas/mcp-edge';
+import { MCPClient } from '@midas/mcp-edge';
 import type { Env } from '../../worker-configuration.d.ts';
 
 const mcpRoutes = new Hono<{ Bindings: Env }>();

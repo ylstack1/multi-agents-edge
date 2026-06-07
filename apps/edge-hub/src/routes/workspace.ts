@@ -1,7 +1,5 @@
 import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
-import { MARKDOWN_FILE_NAMES, isValidMarkdownFileName } from '@midas/contracts';
+import { isValidMarkdownFileName } from '@midas/contracts';
 import { generateDiff, annotateDiff } from '@midas/compiler';
 import { createHydrator } from '../r2-adapter.js';
 import type { Env } from '../../worker-configuration.d.ts';
@@ -73,7 +71,6 @@ workspaceRoutes.delete('/:agentId', async (c) => {
 workspaceRoutes.post('/:agentId/reset-memory', async (c) => {
   const agentId = c.req.param('agentId');
   const hydrator = createHydrator(c.env);
-  const workspace = await hydrator.readWorkspace(agentId);
 
   await hydrator.writeFile(agentId, 'memory.md', '# Memory\n\n*Episodic memory has been reset.*\n');
 
