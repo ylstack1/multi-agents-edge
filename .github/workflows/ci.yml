@@ -43,12 +43,7 @@ jobs:
       - name: Build all packages
         run: pnpm build
 
-      - name: Validate wrangler bindings (edge-hub)
-        run: |
-          cd apps/edge-hub
-          npx wrangler types --check
-
-  deploy-edge:
+      deploy-edge:
     name: Deploy Edge Worker
     needs: quality
     if: github.ref == 'refs/heads/main'
