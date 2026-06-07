@@ -33,10 +33,10 @@ export function useAgents() {
   return useQuery({
     queryKey: ["agents"],
     queryFn: async () => {
-      const result = await apiListAgents();
+      const result: AgentDto[] = await apiListAgents();
       // Map backend DTO (agentId, lastModified, files) to store Agent type
-      const agents = result.map((a: any) => ({
-        id: a.agentId || a.id,
+      const agents = result.map((a) => ({
+        id: a.agentId || a.id || "",
         name: a.agentId === "lead" ? "Lead Agent" : (a.agentId || "Unknown"),
         status: "idle" as const,
         description: a.agentId === "lead"
@@ -47,7 +47,7 @@ export function useAgents() {
       setAgents(agents);
       return agents;
     },
-    refetchInterval: 15_000,
+    refetchInterval: 5_000,
   });
 }
 
@@ -62,7 +62,7 @@ export function useAgent(id: string) {
 export function useCreateAgent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<AgentDto>) => createAgent(data),
+    mutationFn: (data: { name: string; description?: string }) => createAgent(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agents"] });
     },
@@ -87,17 +87,18 @@ export function useWorkspace(agentId: string) {
   return useQuery({
     queryKey: ["workspace", agentId],
     queryFn: async () => {
-      const workspace = await getWorkspace(agentId);
+      const workspace: WorkspaceDto = await getWorkspace(agentId);
+      // Backend returns files as Record<string, string> (fileName -> content)
+      // Convert to WorkspaceFile array for the store
       if (workspace.files) {
-        setFiles(
-          workspace.files.map((f) => ({
-            name: f.path,
-            path: f.path,
-            content: f.content,
-            savedContent: f.content,
-            isDirty: false,
-          })),
-        );
+        const fileArray = Object.entries(workspace.files).map(([name, content]) => ({
+          name,
+          path: name,
+          content: content ?? "",
+          savedContent: content ?? "",
+          isDirty: false,
+        }));
+        setFiles(fileArray);
       }
       return workspace;
     },

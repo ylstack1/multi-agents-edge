@@ -55,16 +55,14 @@ async function request<T>(
 // ─── Agent Operations ────────────────────────────────────────────
 
 export interface AgentDto {
-  id: string;
-  name: string;
-  description: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
+  agentId: string;
+  lastModified: number;
+  files: string[];
 }
 
 export async function listAgents(): Promise<AgentDto[]> {
-  return request<AgentDto[]>("/agents");
+  const res = await request<{ success: boolean; data: AgentDto[] }>("/agents");
+  return res.data ?? [];
 }
 
 export async function getAgent(id: string): Promise<AgentDto> {
@@ -95,42 +93,46 @@ export interface FileDto {
 
 export interface WorkspaceDto {
   agentId: string;
-  files: FileDto[];
+  files: Record<string, string>;
+  lastModifiedEpochMs: number;
 }
 
 export async function getWorkspace(
   agentId: string,
 ): Promise<WorkspaceDto> {
-  return request<WorkspaceDto>(
+  const res = await request<{ success: boolean; data: WorkspaceDto }>(
     `/workspaces/${encodeURIComponent(agentId)}`,
   );
+  return res.data;
 }
 
 export async function getFile(
   agentId: string,
   filePath: string,
-): Promise<FileDto> {
-  return request<FileDto>(
+): Promise<{ agentId: string; fileName: string; content: string | null }> {
+  const res = await request<{ success: boolean; data: { agentId: string; fileName: string; content: string | null } }>(
     `/workspaces/${encodeURIComponent(agentId)}/files/${encodeURIComponent(filePath)}`,
   );
+  return res.data;
 }
 
 export async function saveFile(
   agentId: string,
   filePath: string,
   content: string,
-): Promise<FileDto> {
-  return request<FileDto>(
+): Promise<{ agentId: string; fileName: string; diff: unknown }> {
+  const res = await request<{ success: boolean; data: { agentId: string; fileName: string; diff: unknown } }>(
     `/workspaces/${encodeURIComponent(agentId)}/files/${encodeURIComponent(filePath)}`,
     {
       method: "PUT",
       body: JSON.stringify({ content }),
     },
   );
+  return res.data;
 }
 
 export async function resetMemory(agentId: string): Promise<void> {
-  return request<void>(
+  await request<{ success: boolean; data: unknown }>(
     `/workspaces/${encodeURIComponent(agentId)}/reset-memory`,
     { method: "POST" },
   );

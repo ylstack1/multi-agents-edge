@@ -83,9 +83,13 @@ export interface WorkspaceState {
 
   // Chat — per-agent sessions persisted to localStorage
   chatSessions: Record<string, ChatMessage[]>;
+  /** Archived old sessions keyed by agentId -> sessionKey -> messages */
+  chatArchive: Record<string, Record<string, ChatMessage[]>>;
   getChatMessages: (agentId: string) => ChatMessage[];
   addChatMessage: (agentId: string, message: ChatMessage) => void;
   clearChatMessages: (agentId: string) => void;
+  /** Archive current session and start a fresh one */
+  newChatSession: (agentId: string) => void;
 }
 
 const DEFAULT_FILES: WorkspaceFile[] = [
@@ -170,6 +174,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
       // Chat — per-agent sessions
       chatSessions: {},
+      chatArchive: {},
       getChatMessages: (agentId) => {
         return get().chatSessions[agentId] ?? [];
       },
@@ -184,12 +189,27 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         sessions[agentId] = [];
         set({ chatSessions: sessions });
       },
+      newChatSession: (agentId) => {
+        const sessions = get().chatSessions;
+        const current = sessions[agentId] ?? [];
+        if (current.length === 0) return; // nothing to archive
+        const archive = { ...get().chatArchive };
+        const agentArchive = archive[agentId] ? { ...archive[agentId] } : {};
+        const key = `session-${Date.now()}`;
+        agentArchive[key] = current;
+        archive[agentId] = agentArchive;
+        set({
+          chatArchive: archive,
+          chatSessions: { ...sessions, [agentId]: [] },
+        });
+      },
     }),
     {
       name: "midas-workspace-store",
-      // Only persist chat sessions + agents to localStorage
+      // Persist chat sessions + archives to localStorage
       partialize: (state) => ({
         chatSessions: state.chatSessions,
+        chatArchive: state.chatArchive,
       }),
     },
   ),

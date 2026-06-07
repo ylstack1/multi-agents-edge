@@ -166,31 +166,64 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               ) : (
                 <ChevronRight size={10} />
               )}
-              {message.toolCalls.length} tool call
-              {message.toolCalls.length !== 1 ? "s" : ""}
+              <span className="rounded bg-blue-500/10 px-1 py-0.5 font-medium text-blue-300">
+                {message.toolCalls.length}
+              </span>
+              tool call{message.toolCalls.length !== 1 ? "s" : ""}
             </button>
             {showToolCalls && (
-              <div className="mt-1 space-y-1">
-                {message.toolCalls.map((tc, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-md bg-blue-500/5 p-2 text-[11px]"
-                  >
-                    <span className="font-medium text-blue-300">
-                      {tc.name}
-                    </span>
-                    {tc.arguments && (
-                      <pre className="mt-1 overflow-x-auto text-[10px] text-muted-foreground/70">
-                        {tc.arguments}
-                      </pre>
-                    )}
-                    {tc.result && (
-                      <div className="mt-1 rounded bg-green-500/10 p-1.5 text-[10px] text-green-300">
-                        {tc.result}
+              <div className="mt-1.5 space-y-2">
+                {message.toolCalls.map((tc, idx) => {
+                  let parsedArgs: string;
+                  try {
+                    parsedArgs = JSON.stringify(JSON.parse(tc.arguments), null, 2);
+                  } catch {
+                    parsedArgs = tc.arguments;
+                  }
+
+                  return (
+                    <div
+                      key={idx}
+                      className="overflow-hidden rounded-md border border-blue-500/20 bg-blue-500/5"
+                    >
+                      {/* Tool header */}
+                      <div className="flex items-center gap-1.5 border-b border-blue-500/10 bg-blue-500/10 px-2 py-1.5">
+                        <Terminal size={10} className="text-blue-300" />
+                        <span className="font-medium text-blue-200">
+                          {tc.name}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {/* Arguments */}
+                      {tc.arguments && tc.arguments !== "{}" && (
+                        <details className="group" open>
+                          <summary className="flex cursor-pointer items-center gap-1 border-b border-blue-500/5 px-2 py-1 text-[10px] text-muted-foreground/60 hover:text-muted-foreground">
+                            <ChevronRight size={10} className="transition-transform group-open:rotate-90" />
+                            Arguments
+                          </summary>
+                          <pre className="overflow-x-auto p-2 text-[10px] leading-relaxed text-muted-foreground/70 scrollbar-thin">
+                            {parsedArgs}
+                          </pre>
+                        </details>
+                      )}
+
+                      {/* Result */}
+                      {tc.result && (
+                        <details className="group">
+                          <summary className="flex cursor-pointer items-center gap-1 border-b border-green-500/5 px-2 py-1 text-[10px] text-muted-foreground/60 hover:text-muted-foreground">
+                            <ChevronRight size={10} className="transition-transform group-open:rotate-90" />
+                            Result
+                          </summary>
+                          <pre className="overflow-x-auto p-2 text-[10px] leading-relaxed text-green-300/80 scrollbar-thin">
+                            {tc.result.length > 500
+                              ? tc.result.slice(0, 500) + "\n… (truncated)"
+                              : tc.result}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

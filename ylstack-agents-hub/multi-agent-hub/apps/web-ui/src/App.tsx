@@ -98,7 +98,7 @@ function App() {
 
         <main
           className={cn(
-            "flex-1 overflow-y-auto p-6",
+            "flex-1 overflow-y-auto p-3 sm:p-6",
             "scrollbar-thin",
           )}
         >
