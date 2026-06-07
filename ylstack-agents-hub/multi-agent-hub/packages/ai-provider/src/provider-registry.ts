@@ -62,13 +62,17 @@ export function createProviderFromSettings(
 ): AIProvider {
   // Built-in provider
   if (registry[settings.provider]) {
-    const Constructor = registry[settings.provider];
+    const Constructor = registry[settings.provider]!;
     const config: ProviderConfig = {
       apiKey: settings.apiKey,
       baseUrl: settings.baseUrl,
       model: settings.defaultModel || undefined,
     };
-    return new Constructor(config, ai);
+    // Only pass ai binding for workers-ai
+    if (settings.provider === 'workers-ai') {
+      return new Constructor(config, ai);
+    }
+    return new Constructor(config);
   }
 
   // Custom provider — use OpenAI-compatible client
@@ -77,7 +81,7 @@ export function createProviderFromSettings(
     baseUrl: settings.baseUrl || 'https://api.openai.com/v1',
     model: settings.defaultModel || undefined,
   };
-  return new OpenAIProvider(config, ai);
+  return new OpenAIProvider(config);
 }
 
 /** Get all registered (built-in) provider names */

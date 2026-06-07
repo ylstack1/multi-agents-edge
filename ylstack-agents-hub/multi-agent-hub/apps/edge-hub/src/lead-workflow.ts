@@ -1,4 +1,4 @@
-import type { AgentWorkspace, CompiledPrompt } from '@midas/contracts';
+import type { AgentWorkspace, CompiledPrompt, LLMConfig } from '@midas/contracts';
 import type { AIProvider, CompletionResponse } from '@midas/ai-provider';
 import { WorkspaceHydrator } from '@midas/vfs';
 import { buildPrompt } from '@midas/compiler';
@@ -11,11 +11,24 @@ export class LeadWorkflow {
   private hydrator: WorkspaceHydrator;
   private aiProvider: AIProvider;
   private leadId: string;
+  private defaultConfig: LLMConfig;
 
-  constructor(hydrator: WorkspaceHydrator, aiProvider: AIProvider, leadId = 'lead') {
+  constructor(
+    hydrator: WorkspaceHydrator,
+    aiProvider: AIProvider,
+    leadId = 'lead',
+    defaultConfig?: Partial<LLMConfig>,
+  ) {
     this.hydrator = hydrator;
     this.aiProvider = aiProvider;
     this.leadId = leadId;
+    this.defaultConfig = {
+      model: defaultConfig?.model || '@cf/meta/llama-3.2-3b-instruct',
+      temperature: defaultConfig?.temperature ?? 0.7,
+      maxTokens: defaultConfig?.maxTokens ?? 8192,
+      stream: false,
+      provider: defaultConfig?.provider || 'workers-ai',
+    };
   }
 
   /**
@@ -45,11 +58,11 @@ export class LeadWorkflow {
       messages: [{ role: 'user', content: userMessage }],
       tools: systemTools,
       config: {
-        model: 'gpt-4o',
-        temperature: 0.7,
-        maxTokens: 8192,
+        model: this.defaultConfig.model,
+        temperature: this.defaultConfig.temperature,
+        maxTokens: this.defaultConfig.maxTokens,
         stream: false,
-        provider: 'openai',
+        provider: this.defaultConfig.provider,
       },
     });
 
@@ -195,7 +208,7 @@ Provide a concise summary of what was done and the current state.`;
       systemPrompt: synthesisPrompt,
       messages: [],
       config: {
-        model: 'gpt-4o',
+        model: this.defaultConfig.model,
         temperature: 0.5,
         maxTokens: 1024,
         stream: false,

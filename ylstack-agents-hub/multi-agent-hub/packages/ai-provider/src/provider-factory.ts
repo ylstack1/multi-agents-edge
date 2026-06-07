@@ -22,17 +22,18 @@ export function createProvider(config: ProviderConfig, preferredProvider?: strin
     return createProviderFromSettings({
       provider: preferredProvider as any,
       enabled: true,
+      defaultModel: '',
       apiKey: key,
     });
   }
 
   if (config.openaiApiKey) {
-    return createProviderFromSettings({ provider: 'openai', enabled: true, apiKey: config.openaiApiKey });
+    return createProviderFromSettings({ provider: 'openai', enabled: true, defaultModel: '', apiKey: config.openaiApiKey });
   }
   if (config.anthropicApiKey) {
-    return createProviderFromSettings({ provider: 'anthropic', enabled: true, apiKey: config.anthropicApiKey });
+    return createProviderFromSettings({ provider: 'anthropic', enabled: true, defaultModel: '', apiKey: config.anthropicApiKey });
   }
 
   // Default: Workers AI — requires no API key
-  return createProviderFromSettings({ provider: 'workers-ai', enabled: true });
+  return createProviderFromSettings({ provider: 'workers-ai', enabled: true, defaultModel: '' });
 }

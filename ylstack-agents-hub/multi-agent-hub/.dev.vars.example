@@ -1,12 +1,16 @@
 # Copy this file to .dev.vars for local development
 # wrangler dev will read from .dev.vars automatically
 
-# AI Provider (at least one required)
-OPENAI_API_KEY=sk-your-openai-key-here
-ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+# ── Minimal Local Dev Setup ───────────────────────────────────
+# Most configuration is managed via the App Settings UI at /settings
+# No API keys required in env if you configure them in the UI.
 
-# Session secret for Web UI auth
+# Session secret for Web UI auth (required)
 SESSION_SECRET=dev-session-secret-change-in-production
 
-# Telegram (optional, for testing webhooks)
-TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+# Legacy AI Provider keys (optional — set via UI instead)
+# OPENAI_API_KEY=sk-your-openai-key-here
+# ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+
+# Telegram bot token (optional — configure per-bot in Settings > Telegram)
+# TELEGRAM_BOT_TOKEN=your-telegram-bot-token

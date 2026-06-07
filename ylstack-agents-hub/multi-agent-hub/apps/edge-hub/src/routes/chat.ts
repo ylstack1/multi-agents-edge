@@ -40,8 +40,12 @@ async function resolveProvider(
     }
   }
 
-  const merged = {
-    ...setting,
+  const merged: any = {
+    provider: setting?.provider || provider,
+    enabled: setting?.enabled ?? true,
+    defaultModel: setting?.defaultModel || model,
+    ...(setting?.baseUrl ? { baseUrl: setting.baseUrl } : {}),
+    ...(setting?.models ? { models: setting.models } : {}),
     apiKey: setting?.apiKey ||
       (provider === 'openai' ? env.OPENAI_API_KEY : undefined) ||
       (provider === 'anthropic' ? env.ANTHROPIC_API_KEY : undefined),
@@ -87,7 +91,7 @@ chatRoutes.post('/:agentId', async (c) => {
   const { compiled } = buildPrompt({ workspace, userMessage: message });
 
   const toolsMd = workspace.files['tools.md'];
-  const toolDefinitions = extractToolDefinitions(toolsMd ?? null);
+  const toolDefinitions = (extractToolDefinitions(toolsMd ?? null) ?? []) as any;
 
   const { instance: aiProvider, config } = await resolveProvider(
     c.env, preferredProvider, preferredModel,

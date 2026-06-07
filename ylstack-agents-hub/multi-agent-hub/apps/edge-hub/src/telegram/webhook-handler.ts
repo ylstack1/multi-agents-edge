@@ -146,7 +146,7 @@ export class TelegramWebhookHandler {
         headers: {
           'Content-Type': 'application/json',
           'X-Source': 'TELEGRAM',
-          'X-Session-Token': Buffer.from(`${agentId}:telegram`).toString('base64'),
+          'X-Session-Token': btoa(`${agentId}:telegram`),
         },
         body: JSON.stringify({
           message: parsed.text,
