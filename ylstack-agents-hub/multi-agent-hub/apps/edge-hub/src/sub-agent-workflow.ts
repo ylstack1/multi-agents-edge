@@ -1,4 +1,4 @@
-import type { AgentWorkspace, CompiledPrompt } from '@midas/contracts';
+import type { AgentWorkspace, CompiledPrompt, LLMConfig } from '@midas/contracts';
 import type { AIProvider, CompletionResponse } from '@midas/ai-provider';
 import { WorkspaceHydrator, DeferredFlusher } from '@midas/vfs';
 import { buildPrompt } from '@midas/compiler';
@@ -12,26 +12,37 @@ export class SubAgentWorkflow {
   private flusher: DeferredFlusher;
   private aiProvider: AIProvider;
   private agentId: string;
+  private defaultConfig: LLMConfig;
 
   constructor(
     hydrator: WorkspaceHydrator,
     flusher: DeferredFlusher,
     aiProvider: AIProvider,
     agentId: string,
+    defaultConfig?: Partial<LLMConfig>,
   ) {
     this.hydrator = hydrator;
     this.flusher = flusher;
     this.aiProvider = aiProvider;
     this.agentId = agentId;
+    this.defaultConfig = {
+      model: defaultConfig?.model || '@cf/meta/llama-3.2-3b-instruct',
+      temperature: defaultConfig?.temperature ?? 0.7,
+      maxTokens: defaultConfig?.maxTokens ?? 4096,
+      stream: false,
+      provider: defaultConfig?.provider || 'workers-ai',
+    };
   }
 
   /**
    * Process a user message through this sub-agent.
    * Strictly limited to its own workspace files and assigned MCP tools.
+   * Optionally accepts an override config per-call.
    */
   async processMessage(
     userMessage: string,
     waitUntil?: (p: Promise<unknown>) => void,
+    overrides?: Partial<LLMConfig>,
   ): Promise<{
     response: CompletionResponse;
     compiledPrompt: CompiledPrompt;
@@ -49,18 +60,16 @@ export class SubAgentWorkflow {
     // 3. Extract tools from own tools.md
     const toolDefinitions = this.extractLocalTools(workspace);
 
-    // 4. Invoke LLM
+    // 4. Invoke LLM with dynamic config
+    const config = {
+      ...this.defaultConfig,
+      ...overrides,
+    };
     const response = await this.aiProvider.complete({
       systemPrompt: compiled.systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
       tools: toolDefinitions,
-      config: {
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        maxTokens: 4096,
-        stream: false,
-        provider: 'openai',
-      },
+      config,
     });
 
     // 5. Append to own memory (async flush)

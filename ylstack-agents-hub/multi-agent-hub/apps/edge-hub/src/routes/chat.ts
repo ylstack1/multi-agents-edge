@@ -2,8 +2,12 @@ import { Hono } from 'hono';
 import { createProviderFromSettings } from '@midas/ai-provider';
 import { buildPrompt, extractToolDefinitions } from '@midas/compiler';
 import { SettingsStore } from '../settings-store.js';
-import { createHydrator } from '../r2-adapter.js';
+import { createHydrator, R2BucketAdapter } from '../r2-adapter.js';
+import { LeadWorkflow } from '../lead-workflow.js';
+import { SystemToolsController } from '../system-tools-controller.js';
+import { ExecutionTracer } from '../execution-tracer.js';
 import type { Env } from '../../worker-configuration.d.ts';
+import type { LLMConfig } from '@midas/contracts';
 
 const chatRoutes = new Hono<{ Bindings: Env }>();
 
@@ -61,7 +65,7 @@ async function resolveProvider(
       maxTokens: settings.defaultMaxTokens ?? 4096,
       stream: false,
       provider,
-    } as any,
+    } as LLMConfig,
   };
 }
 
@@ -79,16 +83,56 @@ chatRoutes.post('/:agentId', async (c) => {
   }
 
   const hydrator = createHydrator(c.env);
+  const { instance: aiProvider, config, provider, model } = await resolveProvider(
+    c.env, preferredProvider, preferredModel,
+  );
+
+  if (agentId === 'lead') {
+    // ── Lead Agent: full system tool capabilities ──
+    const storage = new R2BucketAdapter(c.env.WORKSPACE_BUCKET);
+    const toolsController = new SystemToolsController(storage, new Map());
+    const tracer = new ExecutionTracer(agentId);
+
+    const workflow = new LeadWorkflow(
+      hydrator,
+      aiProvider,
+      toolsController,
+      agentId,
+      config,
+      tracer,
+    );
+
+    const result = await workflow.processUserRequest(message);
+
+    // Map tool call execution results to web-friendly format
+    const mappedToolCalls = result.toolCalls.map((tc) => ({
+      name: tc.name,
+      arguments: JSON.stringify(tc.args),
+      result: typeof tc.result === 'string' ? tc.result : JSON.stringify(tc.result),
+    }));
+
+    return c.json({
+      success: true,
+      data: {
+        content: result.response.content,
+        toolCalls: mappedToolCalls.length > 0 ? mappedToolCalls : undefined,
+        finishReason: result.response.finishReason,
+        usage: result.response.usage,
+        compiledPrompt: result.compiledPrompt,
+        provider: config.provider || provider,
+        model: config.model || model,
+        trace: tracer.getTrace(),
+      },
+    });
+  }
+
+  // ── Sub-Agent: sandboxed workspace-only execution ──
   const workspace = await hydrator.readWorkspace(agentId);
 
   const { compiled } = buildPrompt({ workspace, userMessage: message });
 
   const toolsMd = workspace.files['tools.md'];
   const toolDefinitions = (extractToolDefinitions(toolsMd ?? null) ?? []) as any;
-
-  const { instance: aiProvider, config } = await resolveProvider(
-    c.env, preferredProvider, preferredModel,
-  );
 
   const response = await aiProvider.complete({
     systemPrompt: compiled.systemPrompt,
@@ -122,6 +166,14 @@ chatRoutes.post('/:agentId/stream', async (c) => {
 
   if (!message) {
     return c.json({ success: false, error: { code: 'MISSING_MESSAGE', message: 'Message is required' } }, 400);
+  }
+
+  // Streaming is only supported for sub-agents (LeadWorkflow doesn't support streaming yet)
+  if (agentId === 'lead') {
+    return c.json({
+      success: false,
+      error: { code: 'STREAM_NOT_SUPPORTED', message: 'Streaming not supported for lead agent. Use non-streaming endpoint.' },
+    }, 400);
   }
 
   const hydrator = createHydrator(c.env);

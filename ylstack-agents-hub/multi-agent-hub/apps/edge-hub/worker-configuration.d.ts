@@ -1,4 +1,7 @@
 export interface Env {
+  // Assets binding for static file serving (web UI)
+  ASSETS: Fetcher;
+
   // S3-compatible R2 bucket for workspace files
   WORKSPACE_BUCKET: R2Bucket;
 

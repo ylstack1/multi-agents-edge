@@ -6973,7 +6973,11 @@ var TraceNodeSchema = external_exports.object({
     "mcp_tool_execution",
     "lead_synthesis",
     "error",
-    "system_action"
+    "system_action",
+    "reasoning",
+    "llm",
+    "completion",
+    "tool_call"
   ]),
   label: external_exports.string(),
   description: external_exports.string().optional(),
@@ -8578,6 +8582,545 @@ var SettingsStore = class {
   }
 };
 
+// src/execution-tracer.ts
+var ExecutionTracer = class _ExecutionTracer {
+  static {
+    __name(this, "ExecutionTracer");
+  }
+  trace;
+  constructor(sessionId) {
+    this.trace = {
+      traceId: crypto.randomUUID(),
+      sessionId,
+      startedAt: Date.now(),
+      nodes: [],
+      status: "running"
+    };
+  }
+  /**
+   * Add a node to the execution trace.
+   */
+  addNode(node) {
+    const fullNode = {
+      ...node,
+      id: crypto.randomUUID(),
+      timestamp: Date.now()
+    };
+    this.trace.nodes.push(fullNode);
+    return fullNode;
+  }
+  /**
+   * Complete a node by updating its duration and status.
+   */
+  completeNode(nodeId, status) {
+    const node = this.trace.nodes.find((n) => n.id === nodeId);
+    if (node) {
+      node.status = status;
+      node.durationMs = Date.now() - node.timestamp;
+    }
+  }
+  /**
+   * Mark a node as errored.
+   */
+  errorNode(nodeId, error) {
+    const node = this.trace.nodes.find((n) => n.id === nodeId);
+    if (node) {
+      node.status = "error";
+      node.durationMs = Date.now() - node.timestamp;
+      node.metadata = { ...node.metadata, error };
+    }
+  }
+  /**
+   * Finish the trace.
+   */
+  complete() {
+    this.trace.completedAt = Date.now();
+    this.trace.status = this.trace.nodes.some((n) => n.status === "error") ? "failed" : "completed";
+    return this.trace;
+  }
+  /**
+   * Create a default trace for a user request flow.
+   */
+  static createDefaultFlow(sessionId) {
+    const tracer = new _ExecutionTracer(sessionId);
+    tracer.addNode({
+      type: "user_request",
+      label: "User Request Received",
+      status: "success"
+    });
+    return tracer;
+  }
+  /**
+   * Get the trace data.
+   */
+  getTrace() {
+    return { ...this.trace };
+  }
+};
+
+// src/lead-workflow.ts
+var LeadWorkflow = class {
+  static {
+    __name(this, "LeadWorkflow");
+  }
+  hydrator;
+  aiProvider;
+  leadId;
+  defaultConfig;
+  toolsController;
+  tracer;
+  constructor(hydrator, aiProvider, toolsController, leadId = "lead", defaultConfig, tracer) {
+    this.hydrator = hydrator;
+    this.aiProvider = aiProvider;
+    this.toolsController = toolsController;
+    this.leadId = leadId;
+    this.tracer = tracer ?? new ExecutionTracer(leadId);
+    this.defaultConfig = {
+      model: defaultConfig?.model || "@cf/meta/llama-3.2-3b-instruct",
+      temperature: defaultConfig?.temperature ?? 0.7,
+      maxTokens: defaultConfig?.maxTokens ?? 8192,
+      stream: false,
+      provider: defaultConfig?.provider || "workers-ai"
+    };
+  }
+  /**
+   * Process a user request through the Lead Agent with multi-turn tool execution.
+   */
+  async processUserRequest(userMessage, maxToolRounds = 5) {
+    const requestNode = this.tracer.addNode({ type: "user_request", label: "User Request", status: "running" });
+    try {
+      const workspace = await this.hydrator.readWorkspace(this.leadId);
+      this.tracer.completeNode(requestNode.id, "success");
+      const compileNode = this.tracer.addNode({ type: "reasoning", label: "Compile Prompt", status: "running" });
+      const { compiled } = buildPrompt({ workspace, userMessage });
+      this.tracer.completeNode(compileNode.id, "success");
+      const systemTools = this.toolsController.getToolDefinitions();
+      const toolsMd = workspace.files["tools.md"];
+      const workspaceTools = extractToolDefinitions(toolsMd ?? null) ?? [];
+      const allTools = [...systemTools, ...workspaceTools];
+      const toolCallResults = [];
+      let currentMessage = userMessage;
+      let hasToolCalls = true;
+      let rounds = 0;
+      while (hasToolCalls && rounds < maxToolRounds) {
+        rounds++;
+        const llmNode = this.tracer.addNode({ type: "llm", label: `LLM Call (round ${rounds})`, status: "running" });
+        const response = await this.aiProvider.complete({
+          systemPrompt: compiled.systemPrompt,
+          messages: [{ role: "user", content: currentMessage }],
+          tools: allTools,
+          config: {
+            model: this.defaultConfig.model,
+            temperature: this.defaultConfig.temperature,
+            maxTokens: this.defaultConfig.maxTokens,
+            stream: false,
+            provider: this.defaultConfig.provider
+          }
+        });
+        this.tracer.completeNode(llmNode.id, "success");
+        if (!response.toolCalls || response.toolCalls.length === 0) {
+          hasToolCalls = false;
+          this.tracer.addNode({ type: "completion", label: "Final Response", status: "success" });
+          await this.appendMemory(userMessage, response.content ?? "");
+          return {
+            response,
+            compiledPrompt: compiled,
+            toolCalls: toolCallResults
+          };
+        }
+        for (const tc of response.toolCalls) {
+          const toolNode = this.tracer.addNode({
+            type: "tool_call",
+            label: `Tool: ${tc.function.name}`,
+            status: "running"
+          });
+          try {
+            const args = JSON.parse(tc.function.arguments);
+            const result = await this.toolsController.execute(tc.function.name, args);
+            toolCallResults.push({ name: tc.function.name, args, result });
+            this.tracer.completeNode(toolNode.id, result.success ? "success" : "error");
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : "Tool execution failed";
+            toolCallResults.push({ name: tc.function.name, args: {}, result: { error: errorMsg } });
+            this.tracer.errorNode(toolNode.id, errorMsg);
+          }
+        }
+        currentMessage = `Previous tool execution results:
+${toolCallResults.map((t) => `- ${t.name}: ${JSON.stringify(t.result)}`).join("\n")}
+
+Based on these results, provide a final response to the user's original request: "${userMessage}"`;
+      }
+      const synthNode = this.tracer.addNode({ type: "completion", label: "Synthesize Response", status: "running" });
+      const finalResponse = await this.synthesizeResponse(userMessage, toolCallResults);
+      this.tracer.completeNode(synthNode.id, "success");
+      await this.appendMemory(userMessage, finalResponse.content ?? "");
+      this.tracer.complete();
+      return { response: finalResponse, compiledPrompt: compiled, toolCalls: toolCallResults };
+    } catch (err) {
+      this.tracer.errorNode(requestNode.id, err instanceof Error ? err.message : "Unknown error");
+      this.tracer.complete();
+      throw err;
+    }
+  }
+  /** Append conversation to lead's memory.md */
+  async appendMemory(userMessage, responseContent) {
+    try {
+      const { content: existingMemory } = await this.hydrator["deps"].s3.getObject(this.leadId, "memory.md");
+      const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+      const entry = `
+## Session ${timestamp}
+**User:** ${userMessage}
+**Lead:** ${responseContent}
+`;
+      await this.hydrator.writeFile(this.leadId, "memory.md", (existingMemory ?? "") + entry);
+    } catch {
+    }
+  }
+  /** Get the execution trace */
+  getTrace() {
+    return this.tracer.getTrace();
+  }
+  async synthesizeResponse(userMessage, toolResults) {
+    const synthesisPrompt = `You are the Lead Agent synthesizer. Summarize what happened after executing system tools.
+
+User request: "${userMessage}"
+
+Tool results:
+${toolResults.map((t) => `- ${t.name}: ${JSON.stringify(t.result)}`).join("\n")}
+
+Provide a clear, friendly summary.`;
+    return this.aiProvider.complete({
+      systemPrompt: synthesisPrompt,
+      messages: [],
+      config: {
+        model: this.defaultConfig.model,
+        temperature: 0.5,
+        maxTokens: 1024,
+        stream: false,
+        provider: this.defaultConfig.provider
+      }
+    });
+  }
+};
+
+// src/system-tools-controller.ts
+var SystemToolsController = class {
+  constructor(storage, mcpClients = /* @__PURE__ */ new Map()) {
+    this.storage = storage;
+    this.mcpClients = mcpClients;
+  }
+  static {
+    __name(this, "SystemToolsController");
+  }
+  // ── Tool Definitions (for LLM function calling) ──────────────
+  getToolDefinitions() {
+    return [
+      {
+        type: "function",
+        function: {
+          name: "list_agents",
+          description: "List all agent workspaces in the system.",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "read_workspace_file",
+          description: "Read the contents of a workspace file for any agent. Only valid markdown files allowed.",
+          parameters: {
+            type: "object",
+            properties: {
+              agentId: { type: "string", description: "The agent ID to read from" },
+              fileName: { type: "string", enum: [...MARKDOWN_FILE_NAMES] }
+            },
+            required: ["agentId", "fileName"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "modify_agent_file",
+          description: "Modify any workspace file for a sub-agent. Only valid markdown file names allowed.",
+          parameters: {
+            type: "object",
+            properties: {
+              targetAgentId: { type: "string", description: "The sub-agent ID to modify" },
+              fileToModify: { type: "string", enum: [...MARKDOWN_FILE_NAMES] },
+              newContent: { type: "string", description: "Full new content for the file" },
+              reasoning: { type: "string", description: "Why this change is needed" }
+            },
+            required: ["targetAgentId", "fileToModify", "newContent", "reasoning"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "spawn_agent",
+          description: "Create a new sub-agent with a fresh workspace.",
+          parameters: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Name for the new sub-agent" },
+              description: { type: "string", description: "Purpose description" },
+              soul: { type: "string", description: "Optional soul.md content defining personality" },
+              identity: { type: "string", description: "Optional identity.md content" },
+              tools: { type: "string", description: "Optional tools.md content listing capabilities" },
+              reasoning: { type: "string", description: "Why this agent is needed" }
+            },
+            required: ["name", "reasoning"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delete_agent",
+          description: "Delete a sub-agent and its entire workspace permanently.",
+          parameters: {
+            type: "object",
+            properties: {
+              targetAgentId: { type: "string", description: "The sub-agent ID to delete" },
+              reasoning: { type: "string", description: "Why this agent is being removed" }
+            },
+            required: ["targetAgentId", "reasoning"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "rename_agent",
+          description: "Rename a sub-agent by updating its identity.md.",
+          parameters: {
+            type: "object",
+            properties: {
+              targetAgentId: { type: "string", description: "The sub-agent ID to rename" },
+              newName: { type: "string", description: "The new display name" },
+              reasoning: { type: "string", description: "Why this rename is needed" }
+            },
+            required: ["targetAgentId", "newName", "reasoning"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "execute_mcp_tool",
+          description: "Execute an external MCP tool for a connected MCP server. Use this to interact with external APIs, databases, and services.",
+          parameters: {
+            type: "object",
+            properties: {
+              endpointId: { type: "string", description: "The MCP endpoint ID to execute on" },
+              toolName: { type: "string", description: "The tool name to execute" },
+              arguments: { type: "object", description: "Tool arguments as a JSON object" },
+              reasoning: { type: "string", description: "Why this tool call is needed" }
+            },
+            required: ["endpointId", "toolName", "arguments", "reasoning"]
+          }
+        }
+      }
+    ];
+  }
+  // ── Tool Execution ──────────────────────────────────────────
+  async execute(name, args) {
+    switch (name) {
+      case "list_agents":
+        return this.listAgents();
+      case "read_workspace_file":
+        return this.readFile(args);
+      case "modify_agent_file":
+        return this.modifyAgentFile(args);
+      case "spawn_agent":
+        return this.spawnAgent(args);
+      case "delete_agent":
+        return this.deleteAgent(args);
+      case "rename_agent":
+        return this.renameAgent(args);
+      case "execute_mcp_tool":
+        return this.executeMcpTool(args);
+      default:
+        return { success: false, message: `Unknown system tool: ${name}` };
+    }
+  }
+  sanitizeAgentId(agentId) {
+    if (!agentId || agentId.includes("..") || agentId.includes("/") || agentId.includes("\\")) {
+      throw new Error(`Path traversal detected: invalid agentId "${agentId}"`);
+    }
+  }
+  async listAgents() {
+    try {
+      const keys = await this.storage.listObjects("");
+      const agentIds = [...new Set(keys.map((k) => k.split("/")[0]).filter(Boolean))];
+      return {
+        success: true,
+        message: `Found ${agentIds.length} agent(s)`,
+        data: { agents: agentIds }
+      };
+    } catch (err) {
+      return { success: false, message: `Failed to list agents: ${err}` };
+    }
+  }
+  async readFile(args) {
+    const { agentId, fileName } = args;
+    this.sanitizeAgentId(agentId);
+    if (!isValidMarkdownFileName(fileName)) {
+      return { success: false, message: `Invalid file name: ${fileName}` };
+    }
+    try {
+      const { content } = await this.storage.getObject(agentId, fileName);
+      return {
+        success: true,
+        message: content !== null ? `Read ${agentId}/${fileName}` : `File not found: ${agentId}/${fileName}`,
+        data: { agentId, fileName, content: content ?? "", exists: content !== null }
+      };
+    } catch (err) {
+      return { success: false, message: `Failed to read file: ${err}` };
+    }
+  }
+  async modifyAgentFile(args) {
+    const { targetAgentId, fileToModify, newContent, reasoning } = args;
+    this.sanitizeAgentId(targetAgentId);
+    if (!isValidMarkdownFileName(fileToModify)) {
+      return { success: false, message: `Invalid file name: ${fileToModify}` };
+    }
+    try {
+      await this.storage.putObject(targetAgentId, fileToModify, newContent);
+      return {
+        success: true,
+        message: `Updated ${targetAgentId}/${fileToModify}`,
+        data: { agentId: targetAgentId, file: fileToModify, reasoning }
+      };
+    } catch (err) {
+      return { success: false, message: `Failed to modify file: ${err}` };
+    }
+  }
+  async spawnAgent(args) {
+    const { name, description, soul, identity, tools, reasoning } = args;
+    const agentId = `sub-${name.toLowerCase().replace(/[^a-z0-9-]/g, "-")}`;
+    this.sanitizeAgentId(agentId);
+    try {
+      await this.storage.putObject(agentId, "soul.md", soul ?? `# Soul
+
+## Purpose
+${description ?? "Specialized sub-agent"}
+## Values
+- Precision
+- Isolation
+- Task completion
+`);
+      await this.storage.putObject(agentId, "identity.md", identity ?? `# Identity
+
+**Name:** ${name}
+**Role:** Sub-agent
+**Type:** SPECIALIZED
+`);
+      await this.storage.putObject(agentId, "user.md", "# User Context\n\n*To be populated on delegation.*\n");
+      await this.storage.putObject(agentId, "memory.md", `# Memory
+
+*Created: ${(/* @__PURE__ */ new Date()).toISOString()}*
+`);
+      await this.storage.putObject(agentId, "tools.md", tools ?? "# Tools\n\n*No MCP tools assigned yet.*\n");
+      return {
+        success: true,
+        message: `Sub-agent "${name}" (${agentId}) created`,
+        data: { agentId, name, reasoning, filesCreated: [...MARKDOWN_FILE_NAMES] }
+      };
+    } catch (err) {
+      return { success: false, message: `Failed to spawn agent: ${err}` };
+    }
+  }
+  async deleteAgent(args) {
+    const { targetAgentId, reasoning } = args;
+    this.sanitizeAgentId(targetAgentId);
+    try {
+      const keys = await this.storage.listObjects(`${targetAgentId}/`);
+      await Promise.all(keys.map((key) => {
+        const parts = key.split("/");
+        const fileName = parts[1];
+        if (fileName && isValidMarkdownFileName(fileName)) {
+          return this.storage.deleteObject(targetAgentId, fileName);
+        }
+        return Promise.resolve();
+      }));
+      return {
+        success: true,
+        message: `Sub-agent "${targetAgentId}" deleted`,
+        data: { agentId: targetAgentId, reasoning, filesDeleted: keys.length }
+      };
+    } catch (err) {
+      return { success: false, message: `Failed to delete agent: ${err}` };
+    }
+  }
+  async renameAgent(args) {
+    const { targetAgentId, newName, reasoning } = args;
+    this.sanitizeAgentId(targetAgentId);
+    try {
+      const { content: existingIdentity } = await this.storage.getObject(targetAgentId, "identity.md");
+      const updatedIdentity = existingIdentity ? existingIdentity.replace(/^\*\*Name:\*\* .*/m, `**Name:** ${newName}`) : `# Identity
+
+**Name:** ${newName}
+**Role:** Sub-agent
+`;
+      await this.storage.putObject(targetAgentId, "identity.md", updatedIdentity);
+      return {
+        success: true,
+        message: `Sub-agent "${targetAgentId}" renamed to "${newName}"`,
+        data: { agentId: targetAgentId, newName, reasoning }
+      };
+    } catch (err) {
+      return { success: false, message: `Failed to rename agent: ${err}` };
+    }
+  }
+  async executeMcpTool(args) {
+    const { endpointId, toolName, arguments: toolArgs, reasoning } = args;
+    const client = this.mcpClients.get(endpointId);
+    if (!client) {
+      return { success: false, message: `MCP endpoint "${endpointId}" not configured. Use /api/mcp/discover first.` };
+    }
+    try {
+      const result = await client.executeTool(toolName, toolArgs);
+      return {
+        success: true,
+        message: `MCP tool "${toolName}" executed on "${endpointId}"`,
+        data: {
+          endpointId,
+          toolName,
+          reasoning,
+          result: typeof result === "string" ? result : JSON.stringify(result)
+        }
+      };
+    } catch (err) {
+      return { success: false, message: `MCP tool execution failed: ${err}` };
+    }
+  }
+  /**
+   * Get a summary of all MCP clients and their available tools for display.
+   */
+  async getMcpCapabilitiesSummary() {
+    const summaries = [];
+    for (const [endpointId, client] of this.mcpClients) {
+      try {
+        const tools = await client.discoverTools();
+        summaries.push({
+          endpointId,
+          toolCount: tools.length,
+          toolNames: tools.map((t) => t.name)
+        });
+      } catch {
+        summaries.push({ endpointId, toolCount: 0, toolNames: [] });
+      }
+    }
+    return summaries;
+  }
+};
+
 // src/routes/chat.ts
 var chatRoutes = new Hono2();
 async function resolveProvider(env, preferredProvider, preferredModel) {
@@ -8629,15 +9172,47 @@ chatRoutes.post("/:agentId", async (c) => {
     return c.json({ success: false, error: { code: "MISSING_MESSAGE", message: "Message is required" } }, 400);
   }
   const hydrator = createHydrator(c.env);
-  const workspace = await hydrator.readWorkspace(agentId);
-  const { compiled } = buildPrompt({ workspace, userMessage: message });
-  const toolsMd = workspace.files["tools.md"];
-  const toolDefinitions = extractToolDefinitions(toolsMd ?? null) ?? [];
-  const { instance: aiProvider, config } = await resolveProvider(
+  const { instance: aiProvider, config, provider, model } = await resolveProvider(
     c.env,
     preferredProvider,
     preferredModel
   );
+  if (agentId === "lead") {
+    const storage = new R2BucketAdapter(c.env.WORKSPACE_BUCKET);
+    const toolsController = new SystemToolsController(storage, /* @__PURE__ */ new Map());
+    const tracer = new ExecutionTracer(agentId);
+    const workflow = new LeadWorkflow(
+      hydrator,
+      aiProvider,
+      toolsController,
+      agentId,
+      config,
+      tracer
+    );
+    const result = await workflow.processUserRequest(message);
+    const mappedToolCalls = result.toolCalls.map((tc) => ({
+      name: tc.name,
+      arguments: JSON.stringify(tc.args),
+      result: typeof tc.result === "string" ? tc.result : JSON.stringify(tc.result)
+    }));
+    return c.json({
+      success: true,
+      data: {
+        content: result.response.content,
+        toolCalls: mappedToolCalls.length > 0 ? mappedToolCalls : void 0,
+        finishReason: result.response.finishReason,
+        usage: result.response.usage,
+        compiledPrompt: result.compiledPrompt,
+        provider: config.provider || provider,
+        model: config.model || model,
+        trace: tracer.getTrace()
+      }
+    });
+  }
+  const workspace = await hydrator.readWorkspace(agentId);
+  const { compiled } = buildPrompt({ workspace, userMessage: message });
+  const toolsMd = workspace.files["tools.md"];
+  const toolDefinitions = extractToolDefinitions(toolsMd ?? null) ?? [];
   const response = await aiProvider.complete({
     systemPrompt: compiled.systemPrompt,
     messages: [{ role: "user", content: message }],
@@ -8662,6 +9237,12 @@ chatRoutes.post("/:agentId/stream", async (c) => {
   const { message, model: preferredModel, provider: preferredProvider } = await c.req.json();
   if (!message) {
     return c.json({ success: false, error: { code: "MISSING_MESSAGE", message: "Message is required" } }, 400);
+  }
+  if (agentId === "lead") {
+    return c.json({
+      success: false,
+      error: { code: "STREAM_NOT_SUPPORTED", message: "Streaming not supported for lead agent. Use non-streaming endpoint." }
+    }, 400);
   }
   const hydrator = createHydrator(c.env);
   const workspace = await hydrator.readWorkspace(agentId);
