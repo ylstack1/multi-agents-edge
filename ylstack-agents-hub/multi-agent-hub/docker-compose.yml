@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  edge-hub:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "8787:8787"
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - SESSION_SECRET=dev-secret
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: >
+      sh -c "cd /app && pnpm --filter @midas/mock-mcp-server dev &
+             cd /app && pnpm --filter @midas/edge-hub dev"
+
+  mock-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    ports:
+      - "3001:3001"
+    command: ["node", "tooling/mock-mcp-server/src/server.js"]
+    working_dir: /app
+    volumes:
+      - ./tooling/mock-mcp-server:/app/tooling/mock-mcp-server

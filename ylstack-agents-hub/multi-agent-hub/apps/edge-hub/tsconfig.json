@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "types": ["@cloudflare/workers-types"],
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["src/**/*.ts", "worker-configuration.d.ts"],
+  "references": [
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/compiler" },
+    { "path": "../../packages/vfs" },
+    { "path": "../../packages/mcp-edge" },
+    { "path": "../../packages/ai-provider" }
+  ]
+}

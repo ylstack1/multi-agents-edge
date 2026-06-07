@@ -1,0 +1,37 @@
+name = "multi-agent-hub"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Worker Configuration
+workers_dev = true
+
+# KV Namespace for VFS cache
+[[kv_namespaces]]
+binding = "VFS_CACHE"
+id = "" # Set after `wrangler kv:namespace create`
+
+# R2 Bucket for markdown workspace storage
+[[r2_buckets]]
+binding = "WORKSPACE_BUCKET"
+bucket_name = "midas-workspaces"
+preview_bucket_name = "midas-workspaces-dev"
+
+# Environment Variables (set in .dev.vars locally, or via wrangler secret in prod)
+[vars]
+ENVIRONMENT = "development"
+LOG_LEVEL = "debug"
+
+# Logging & Observability
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+# Environment-specific overrides
+[env.production]
+name = "multi-agent-hub"
+vars = { ENVIRONMENT = "production", LOG_LEVEL = "info" }
+
+[env.staging]
+name = "multi-agent-hub-staging"
+vars = { ENVIRONMENT = "staging", LOG_LEVEL = "debug" }

@@ -1,0 +1,10 @@
+{
+  "name": "@midas/r2-concurrency-probe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/probe.js",
+    "dev": "node src/probe.js"
+  }
+}
