@@ -267,7 +267,7 @@ interface AgentCardProps {
 }
 
 function AgentCard({ agent, onOpen, onChat }: AgentCardProps) {
-  const config = (statusConfig[agent.status] ?? statusConfig.idle) as { bg: string; border: string; dot: string; label: string };
+  const config = (statusConfig[agent.status] ?? statusConfig.idle) as { color: string; bg: string; label: string };
 
   return (
     <div className={cn(

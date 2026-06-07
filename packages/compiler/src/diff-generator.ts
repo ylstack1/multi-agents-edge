@@ -88,9 +88,9 @@ function longestCommonSubsequence(a: string[], b: string[]): string[] {
     const prevRow = dp[i - 1] as number[];
     for (let j = 1; j <= n; j++) {
       if (a[i - 1] === b[j - 1]) {
-        row[j] = prevRow[j - 1] + 1;
+        row[j] = (prevRow[j - 1] ?? 0) + 1;
       } else {
-        row[j] = Math.max(prevRow[j], row[j - 1]);
+        row[j] = Math.max(prevRow[j] ?? 0, row[j - 1] ?? 0);
       }
     }
   }
@@ -104,7 +104,7 @@ function longestCommonSubsequence(a: string[], b: string[]): string[] {
       result.unshift(a[i - 1] as string);
       i--;
       j--;
-    } else if ((dp[i - 1] as number[])[j] > (dp[i] as number[])[j - 1]) {
+    } else if (((dp[i - 1] as number[])[j] ?? 0) > ((dp[i] as number[])[j - 1] ?? 0)) {
       i--;
     } else {
       j--;
