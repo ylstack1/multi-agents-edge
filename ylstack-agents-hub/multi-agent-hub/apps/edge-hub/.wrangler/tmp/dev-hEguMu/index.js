@@ -7551,6 +7551,10 @@ var OpenAIProvider = class {
         return { type: "done" };
       }
       const delta = choice.delta;
+      const reasoningDelta = delta.reasoning_content;
+      if (reasoningDelta) {
+        return { type: "reasoning", reasoning: reasoningDelta };
+      }
       if (delta.tool_calls?.[0]) {
         const tc = delta.tool_calls[0];
         if (tc?.id) {
@@ -7702,6 +7706,12 @@ var AnthropicProvider = class {
     if (data === "[DONE]") return null;
     try {
       const json = JSON.parse(data);
+      if (json.type === "content_block_start" && json.content_block?.type === "thinking") {
+        return { type: "reasoning", reasoning: json.content_block.thinking ?? "" };
+      }
+      if (json.type === "content_block_delta" && json.delta?.type === "thinking_delta") {
+        return { type: "reasoning", reasoning: json.delta.thinking ?? "" };
+      }
       if (json.type === "content_block_delta" && json.delta?.text) {
         return { type: "text", content: json.delta.text };
       }
@@ -7936,9 +7946,14 @@ var DeepSeekProvider = class {
         if (line.startsWith("data: ") && line !== "data: [DONE]") {
           try {
             const data = JSON.parse(line.slice(6));
-            const delta = data?.choices?.[0]?.delta?.content ?? "";
-            if (delta) {
-              yield { type: "text", content: delta };
+            const delta = data?.choices?.[0]?.delta ?? {};
+            const reasoningDelta = delta.reasoning_content;
+            if (reasoningDelta) {
+              yield { type: "reasoning", reasoning: reasoningDelta };
+            }
+            const textDelta = delta.content ?? "";
+            if (textDelta) {
+              yield { type: "text", content: textDelta };
             }
           } catch {
           }

@@ -86,10 +86,15 @@ export class DeepSeekProvider implements AIProvider {
         if (line.startsWith('data: ') && line !== 'data: [DONE]') {
           try {
             const data = JSON.parse(line.slice(6));
-            const delta =
-              data?.choices?.[0]?.delta?.content ?? '';
-            if (delta) {
-              yield { type: 'text', content: delta } as LLMStreamChunk;
+            const delta = data?.choices?.[0]?.delta ?? {};
+            // Extract reasoning_content (DeepSeek R1)
+            const reasoningDelta = delta.reasoning_content;
+            if (reasoningDelta) {
+              yield { type: 'reasoning', reasoning: reasoningDelta } as LLMStreamChunk;
+            }
+            const textDelta = delta.content ?? '';
+            if (textDelta) {
+              yield { type: 'text', content: textDelta } as LLMStreamChunk;
             }
           } catch { /* skip */ }
         }

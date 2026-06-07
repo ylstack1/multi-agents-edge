@@ -145,10 +145,19 @@ export class AnthropicProvider implements AIProvider {
     try {
       const json = JSON.parse(data) as {
         type?: string;
-        delta?: { text?: string };
-        content_block?: { type?: string; name?: string; input?: Record<string, unknown> };
+        delta?: { text?: string; type?: string; thinking?: string };
+        content_block?: { type?: string; name?: string; input?: Record<string, unknown>; thinking?: string };
         index?: number;
       };
+
+      // Anthropic thinking blocks
+      if (json.type === 'content_block_start' && json.content_block?.type === 'thinking') {
+        return { type: 'reasoning', reasoning: json.content_block.thinking ?? '' };
+      }
+
+      if (json.type === 'content_block_delta' && json.delta?.type === 'thinking_delta') {
+        return { type: 'reasoning', reasoning: json.delta.thinking ?? '' };
+      }
 
       if (json.type === 'content_block_delta' && json.delta?.text) {
         return { type: 'text', content: json.delta.text };

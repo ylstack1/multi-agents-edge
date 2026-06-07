@@ -165,6 +165,13 @@ export class OpenAIProvider implements AIProvider {
       }
 
       const delta = choice.delta;
+
+      // Extract reasoning_content (OpenAI o1/o3, DeepSeek R1)
+      const reasoningDelta = (delta as any).reasoning_content;
+      if (reasoningDelta) {
+        return { type: 'reasoning', reasoning: reasoningDelta };
+      }
+
       if (delta.tool_calls?.[0]) {
         const tc = delta.tool_calls[0];
         if (tc?.id) {
