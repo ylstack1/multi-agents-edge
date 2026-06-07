@@ -16,6 +16,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SettingsPage } from "@/components/settings/SettingsPage";
+import { useAgents } from "@/hooks/useVFSClient";
+
+/** Fetches agents from API on mount to populate the store */
+function AgentLoader({ children }: { children: React.ReactNode }) {
+  useAgents();
+  return <>{children}</>;
+}
 
 function McpConfigPage() {
   return (
@@ -96,21 +103,23 @@ function App() {
           )}
         >
           <ErrorBoundary>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route
-                path="/workspace/:agentId"
-                element={<MarkdownEditor />}
-              />
-              <Route path="/chat" element={<ChatPlayground />} />
-              <Route
-                path="/chat/:agentId"
-                element={<ChatPlayground />}
-              />
-              <Route path="/mcp" element={<McpConfigPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <AgentLoader>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route
+                  path="/workspace/:agentId"
+                  element={<MarkdownEditor />}
+                />
+                <Route path="/chat" element={<ChatPlayground />} />
+                <Route
+                  path="/chat/:agentId"
+                  element={<ChatPlayground />}
+                />
+                <Route path="/mcp" element={<McpConfigPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </AgentLoader>
           </ErrorBoundary>
         </main>
       </div>

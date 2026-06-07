@@ -182,28 +182,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   agents: [
     {
-      id: "1",
-      name: "Default Agent",
+      id: "lead",
+      name: "Lead Agent",
       status: "idle",
-      description: "General-purpose AI assistant",
+      description: "System orchestrator — manages all agents and tools",
       lastActive: Date.now(),
     },
-    {
-      id: "2",
-      name: "Code Agent",
-      status: "idle",
-      description: "Specialized in code generation and analysis",
-      lastActive: Date.now() - 3600000,
-    },
-    {
-      id: "3",
-      name: "Research Agent",
-      status: "active",
-      description: "Web research and information gathering",
-      lastActive: Date.now() - 600000,
-    },
   ],
-  setAgents: (agents) => set({ agents }),
+  setAgents: (agents) => {
+    // Always ensure lead agent is first and present
+    const hasLead = agents.some((a) => a.id === "lead");
+    if (!hasLead) {
+      agents.unshift({
+        id: "lead",
+        name: "Lead Agent",
+        status: "idle",
+        description: "System orchestrator — manages all agents and tools",
+        lastActive: Date.now(),
+      });
+    }
+    set({ agents });
+  },
 
   chatMessages: [],
   setChatMessages: (messages) => set({ chatMessages: messages }),

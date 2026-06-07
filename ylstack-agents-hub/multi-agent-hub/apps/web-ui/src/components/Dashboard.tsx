@@ -11,6 +11,7 @@ import {
   Clock,
   MessageSquare,
   FileText,
+  Star,
 } from "lucide-react";
 import {
   BarChart,
@@ -271,7 +272,10 @@ function AgentCard({ agent, onOpen, onChat }: AgentCardProps) {
   const config = (statusConfig[agent.status] ?? statusConfig.idle)!;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/30">
+    <div className={cn(
+      "rounded-lg border bg-card p-3 transition-colors hover:bg-accent/30",
+      agent.id === "lead" ? "border-primary/30" : "border-border",
+    )}>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <div
@@ -280,12 +284,23 @@ function AgentCard({ agent, onOpen, onChat }: AgentCardProps) {
               config.bg,
             )}
           >
-            <Bot size={16} className={config.color} />
+            {agent.id === "lead" ? (
+              <Star size={16} className="text-amber-400" />
+            ) : (
+              <Bot size={16} className={config.color} />
+            )}
           </div>
           <div>
-            <h4 className="text-xs font-medium text-foreground">
-              {agent.name}
-            </h4>
+            <div className="flex items-center gap-1.5">
+              <h4 className="text-xs font-medium text-foreground">
+                {agent.name}
+              </h4>
+              {agent.id === "lead" && (
+                <span className="rounded bg-primary/10 px-1 py-0.5 text-[9px] font-medium text-primary">
+                  Lead
+                </span>
+              )}
+            </div>
             <p className="text-[10px] text-muted-foreground">
               {agent.description}
             </p>
@@ -338,8 +353,9 @@ function CreateAgentModal({
   const handleCreate = () => {
     if (!name.trim()) return;
     const agents = useWorkspaceStore.getState().agents;
+    const id = "sub-" + name.toLowerCase().replace(/[^a-z0-9-]/g, "-");
     const newAgent: Agent = {
-      id: String(agents.length + 1),
+      id,
       name: name.trim(),
       status: "idle",
       description: "Custom agent",

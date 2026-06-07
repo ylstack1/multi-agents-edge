@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  listAgents,
+  listAgents as apiListAgents,
   getAgent,
   createAgent,
   deleteAgent,
@@ -28,9 +28,25 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 // ─── Agent Queries ───────────────────────────────────────────────
 
 export function useAgents() {
+  const setAgents = useWorkspaceStore((s) => s.setAgents);
+
   return useQuery({
     queryKey: ["agents"],
-    queryFn: listAgents,
+    queryFn: async () => {
+      const result = await apiListAgents();
+      // Map backend DTO (agentId, lastModified, files) to store Agent type
+      const agents = result.map((a: any) => ({
+        id: a.agentId || a.id,
+        name: a.agentId === "lead" ? "Lead Agent" : (a.name || a.agentId || "Unknown"),
+        status: "idle" as const,
+        description: a.agentId === "lead"
+          ? "System orchestrator — manages all agents and tools"
+          : (a.description || "Sub-agent"),
+        lastActive: a.lastModified || Date.now(),
+      }));
+      setAgents(agents);
+      return agents;
+    },
   });
 }
 

@@ -15,6 +15,7 @@ import {
   Terminal,
   ChevronDown,
   Loader2,
+  Star,
 } from "lucide-react";
 
 export function ChatPlayground() {
@@ -27,7 +28,7 @@ export function ChatPlayground() {
   const setActiveAgentId = useWorkspaceStore((s) => s.setActiveAgentId);
 
   const [selectedAgentId, setSelectedAgentId] = useState(
-    agentId || (agents[0]?.id ?? ""),
+    agentId || "lead",
   );
   const [showInspector, setShowInspector] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
@@ -149,6 +150,11 @@ export function ChatPlayground() {
               >
                 <Bot size={14} className="text-blue-400" />
                 {selectedAgent?.name ?? "Select Agent"}
+                {selectedAgent?.id === "lead" && (
+                  <span className="rounded bg-primary/10 px-1 py-0.5 text-[9px] font-medium text-primary">
+                    Lead
+                  </span>
+                )}
                 <ChevronDown size={12} />
               </button>
               {showAgentDropdown && (
@@ -175,7 +181,12 @@ export function ChatPlayground() {
                         )}
                       >
                         <Bot size={12} />
-                        {agent.name}
+                        <span className="flex-1 truncate">{agent.name}</span>
+                        {agent.id === "lead" && (
+                          <span className="rounded bg-primary/10 px-1 py-0.5 text-[9px] font-medium text-primary">
+                            Lead
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
