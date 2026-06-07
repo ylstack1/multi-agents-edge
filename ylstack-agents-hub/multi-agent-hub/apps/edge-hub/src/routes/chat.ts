@@ -63,7 +63,6 @@ async function resolveProvider(
       model: model || merged?.defaultModel || '',
       temperature: settings.defaultTemperature ?? 0.7,
       maxTokens: settings.defaultMaxTokens ?? 4096,
-      stream: false,
       provider,
     } as LLMConfig,
   };
