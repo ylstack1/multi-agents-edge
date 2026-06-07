@@ -1,4 +1,4 @@
-import type { LLMProvider, ProviderSetting } from '@midas/contracts';
+import type { ProviderSetting } from '@midas/contracts';
 import type { AIProvider, ProviderConfig } from './types.js';
 import { OpenAIProvider } from './openai-provider.js';
 import { AnthropicProvider } from './anthropic-provider.js';
@@ -17,6 +17,7 @@ export interface ProviderFactory {
 
 type ProviderConstructor = new (config: ProviderConfig, ai?: Ai) => AIProvider;
 
+/** Built-in provider constructors */
 const registry: Record<string, ProviderConstructor> = {
   openai: OpenAIProvider,
   anthropic: AnthropicProvider,
@@ -46,31 +47,40 @@ export const DEFAULT_MODELS: Record<string, string[]> = {
   ],
 };
 
-/** Check is a provider is registered */
+/** Check if a provider is registered (built-in) */
 export function isProviderRegistered(name: string): boolean {
   return name in registry;
 }
 
-/** Get a provider instance by config */
+/**
+ * Create a provider instance from settings.
+ * Handles both built-in and custom (OpenAI-compatible) providers.
+ */
 export function createProviderFromSettings(
   settings: ProviderSetting,
   ai?: Ai,
 ): AIProvider {
-  const Constructor = registry[settings.provider];
-  if (!Constructor) {
-    throw new Error(`Unknown provider: ${settings.provider}`);
+  // Built-in provider
+  if (registry[settings.provider]) {
+    const Constructor = registry[settings.provider];
+    const config: ProviderConfig = {
+      apiKey: settings.apiKey,
+      baseUrl: settings.baseUrl,
+      model: settings.defaultModel || undefined,
+    };
+    return new Constructor(config, ai);
   }
 
+  // Custom provider — use OpenAI-compatible client
   const config: ProviderConfig = {
     apiKey: settings.apiKey,
-    baseUrl: settings.baseUrl,
+    baseUrl: settings.baseUrl || 'https://api.openai.com/v1',
     model: settings.defaultModel || undefined,
   };
-
-  return new Constructor(config, ai);
+  return new OpenAIProvider(config, ai);
 }
 
-/** Get all registered provider names */
+/** Get all registered (built-in) provider names */
 export function getRegisteredProviders(): string[] {
   return Object.keys(registry);
 }
@@ -81,12 +91,18 @@ export async function fetchProviderModels(
   apiKey: string,
   baseUrl?: string,
 ): Promise<string[]> {
-  const url =
-    providerName === 'openrouter'
-      ? `${baseUrl || 'https://openrouter.ai/api'}/v1/models`
-      : providerName === 'deepseek'
-        ? `${baseUrl || 'https://api.deepseek.com'}/v1/models`
-        : `${baseUrl || 'https://api.openai.com'}/v1/models`;
+  let url: string;
+
+  switch (providerName) {
+    case 'openrouter':
+      url = `${baseUrl || 'https://openrouter.ai/api'}/v1/models`;
+      break;
+    case 'deepseek':
+      url = `${baseUrl || 'https://api.deepseek.com'}/v1/models`;
+      break;
+    default:
+      url = `${baseUrl || 'https://api.openai.com'}/v1/models`;
+  }
 
   try {
     const res = await fetch(url, {

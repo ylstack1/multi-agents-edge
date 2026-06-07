@@ -15,6 +15,11 @@ export interface Env {
   // Session secret for Web UI auth
   SESSION_SECRET?: string;
 
-  // Telegram (optional)
+  // Telegram (optional — settings UI is the primary config method)
   TELEGRAM_BOT_TOKEN?: string;
+
+  // Public base URL for webhook callbacks (set via settings UI)
+  WEBHOOK_BASE_URL?: string;
 }
+
+export type { Env as WorkerEnv };

@@ -1,6 +1,6 @@
 /**
  * API client for the Multi-Agent Hub VFS backend.
- * Provides typed fetch wrappers for workspace, agent, chat, and MCP operations.
+ * Provides typed fetch wrappers for workspace, agent, chat, MCP, and settings operations.
  */
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
@@ -299,6 +299,253 @@ export async function getTrace(
   return request<TraceNodeDto>(
     `/trace/${encodeURIComponent(sessionId)}`,
   );
+}
+
+// ─── Settings Operations ─────────────────────────────────────────
+
+export interface ProviderInfo {
+  provider: string;
+  enabled: boolean;
+  defaultModel: string;
+  models: string[];
+  hasApiKey: boolean;
+  isCustom: boolean;
+  label: string;
+}
+
+export interface TelegramBotInfo {
+  botId: string;
+  leadAgentId: string;
+  agentMappings: Record<string, string>;
+  defaultAgentId?: string;
+  label?: string;
+  enabled: boolean;
+  hasBotToken: boolean;
+  allowedChatIds?: number[];
+  webhookUrl?: string;
+  webhookSetAt?: number;
+}
+
+export interface MarketplaceProvider {
+  id: string;
+  label: string;
+  description: string;
+  baseUrl: string;
+  category: string;
+  iconUrl?: string;
+  docsUrl?: string;
+  requiresKey: boolean;
+  builtIn: boolean;
+}
+
+export interface IntegrationInfo {
+  type: string;
+  enabled: boolean;
+  label: string;
+  configured: boolean;
+  config?: Record<string, unknown>;
+}
+
+/** GET /api/settings — Load all settings (keys stripped) */
+export async function getSettings(): Promise<any> {
+  return request<any>("/settings");
+}
+
+/** PUT /api/settings — Save all settings */
+export async function saveSettings(settings: any): Promise<any> {
+  return request<any>("/settings", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
+}
+
+/** GET /api/settings/providers — List all providers */
+export async function listProviders(): Promise<ProviderInfo[]> {
+  const result = await request<{ success: boolean; data: ProviderInfo[] }>("/settings/providers");
+  return result.data;
+}
+
+/** PUT /api/settings/providers/:provider — Update provider */
+export async function updateProvider(
+  provider: string,
+  data: {
+    enabled?: boolean;
+    apiKey?: string;
+    baseUrl?: string;
+    defaultModel?: string;
+    models?: string[];
+    customModels?: string[];
+    label?: string;
+  },
+): Promise<void> {
+  await request(`/settings/providers/${encodeURIComponent(provider)}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/** POST /api/settings/providers/:provider/test — Test provider */
+export async function testProvider(
+  provider: string,
+): Promise<{ ok: boolean; latencyMs: number }> {
+  const result = await request<{ success: boolean; data: { ok: boolean; latencyMs: number } }>(
+    `/settings/providers/${encodeURIComponent(provider)}/test`,
+    { method: "POST" },
+  );
+  return result.data;
+}
+
+/** POST /api/settings/providers/:provider/models — Fetch models */
+export async function fetchProviderModels(
+  provider: string,
+): Promise<string[]> {
+  const result = await request<{ success: boolean; data: { models: string[] } }>(
+    `/settings/providers/${encodeURIComponent(provider)}/models`,
+    { method: "POST" },
+  );
+  return result.data.models;
+}
+
+/** GET /api/settings/marketplace — List marketplace providers */
+export async function getMarketplace(): Promise<{ builtIn: MarketplaceProvider[]; community: MarketplaceProvider[] }> {
+  const result = await request<{ success: boolean; data: { builtIn: MarketplaceProvider[]; community: MarketplaceProvider[] } }>(
+    "/settings/marketplace",
+  );
+  return result.data;
+}
+
+/** PUT /api/settings/custom-providers/:id — Add/update custom provider */
+export async function upsertCustomProvider(
+  id: string,
+  data: {
+    label: string;
+    baseUrl: string;
+    apiKey?: string;
+    defaultModel?: string;
+    models?: string[];
+    enabled?: boolean;
+  },
+): Promise<void> {
+  await request(`/settings/custom-providers/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/** DELETE /api/settings/custom-providers/:id — Remove custom provider */
+export async function deleteCustomProvider(id: string): Promise<void> {
+  await request(`/settings/custom-providers/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+/** GET /api/settings/integrations — List integrations */
+export async function listIntegrations(): Promise<IntegrationInfo[]> {
+  const result = await request<{ success: boolean; data: IntegrationInfo[] }>(
+    "/settings/integrations",
+  );
+  return result.data;
+}
+
+/** PUT /api/settings/integrations/:type — Update integration */
+export async function updateIntegration(
+  type: string,
+  data: {
+    enabled?: boolean;
+    config?: Record<string, unknown>;
+    label?: string;
+  },
+): Promise<void> {
+  await request(`/settings/integrations/${encodeURIComponent(type)}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/** PUT /api/settings/integrations/github — Quick GitHub config */
+export async function updateGitHubIntegration(data: {
+  token?: string;
+  owner?: string;
+  repo?: string;
+  branch?: string;
+  autoSync?: boolean;
+  enabled?: boolean;
+}): Promise<void> {
+  await request("/settings/integrations/github", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/** PUT /api/settings/integrations/skills — Quick skills config */
+export async function updateSkillsIntegration(data: {
+  enabledList?: string[];
+  autoDiscover?: boolean;
+  customSkillDirs?: string[];
+  enabled?: boolean;
+}): Promise<void> {
+  await request("/settings/integrations/skills", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/** GET /api/settings/telegram — Get Telegram configs */
+export async function getTelegramSettings(): Promise<{
+  bots: TelegramBotInfo[];
+  hasBotToken: boolean;
+  webhookBaseUrl?: string;
+  botCount: number;
+}> {
+  const result = await request<{ success: boolean; data: any }>("/settings/telegram");
+  return result.data;
+}
+
+/** PUT /api/settings/telegram — Update Telegram settings */
+export async function updateTelegramSettings(data: {
+  bots?: TelegramBotInfo[];
+  webhookBaseUrl?: string;
+}): Promise<void> {
+  await request("/settings/telegram", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/** PUT /api/settings/telegram/bots/:botId — Upsert bot */
+export async function upsertTelegramBot(
+  botId: string,
+  data: Partial<TelegramBotInfo> & { botToken?: string },
+): Promise<void> {
+  await request(`/settings/telegram/bots/${encodeURIComponent(botId)}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/** DELETE /api/settings/telegram/bots/:botId — Delete bot */
+export async function deleteTelegramBot(botId: string): Promise<void> {
+  await request(`/settings/telegram/bots/${encodeURIComponent(botId)}`, {
+    method: "DELETE",
+  });
+}
+
+/** POST /api/settings/telegram/bots/:botId/set-webhook — Set webhook */
+export async function setTelegramWebhook(botId: string): Promise<any> {
+  const result = await request<{ success: boolean; data: any }>(
+    `/settings/telegram/bots/${encodeURIComponent(botId)}/set-webhook`,
+    { method: "POST" },
+  );
+  return result.data;
+}
+
+/** POST /api/settings/telegram/bots/:botId/delete-webhook — Delete webhook */
+export async function deleteTelegramWebhook(botId: string): Promise<any> {
+  const result = await request<{ success: boolean; data: any }>(
+    `/settings/telegram/bots/${encodeURIComponent(botId)}/delete-webhook`,
+    { method: "POST" },
+  );
+  return result.data;
 }
 
 export { ApiError, API_BASE };

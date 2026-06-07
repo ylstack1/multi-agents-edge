@@ -9,7 +9,7 @@ import type { Env } from '../../worker-configuration.d.ts';
 
 const chatRoutes = new Hono<{ Bindings: Env }>();
 
-/** Resolve provider from settings with fallback */
+/** Resolve provider from settings with fallback chain */
 async function resolveProvider(
   env: Env,
   preferredProvider?: string,
@@ -20,24 +20,29 @@ async function resolveProvider(
 
   let provider = preferredProvider || settings.defaultProvider;
   let model = preferredModel || settings.defaultModel;
-  const setting = settings.providers[provider];
 
-  if (!setting?.enabled || !setting) {
+  // Check all providers (built-in + custom)
+  const allProviders = { ...settings.providers, ...settings.customProviders };
+  let setting = allProviders[provider];
+
+  if (!setting?.enabled) {
     // Fallback to first enabled provider
-    const enabled = Object.entries(settings.providers).find(([, s]) => s.enabled);
+    const enabled = Object.entries(allProviders).find(([, s]) => s.enabled);
     if (enabled) {
       provider = enabled[0];
-      model = enabled[1].defaultModel || model;
+      model = (enabled[1] as any).defaultModel || model;
+      setting = enabled[1];
     } else {
       // Hard fallback to workers-ai
       provider = 'workers-ai';
       model = '@cf/meta/llama-3.2-3b-instruct';
+      setting = settings.providers['workers-ai'];
     }
   }
 
   const merged = {
-    ...settings.providers[provider],
-    apiKey: settings.providers[provider]?.apiKey ||
+    ...setting,
+    apiKey: setting?.apiKey ||
       (provider === 'openai' ? env.OPENAI_API_KEY : undefined) ||
       (provider === 'anthropic' ? env.ANTHROPIC_API_KEY : undefined),
   };
@@ -47,11 +52,18 @@ async function resolveProvider(
   return {
     instance: createProviderFromSettings(merged, ai),
     provider,
-    model,
-    config: { model, temperature: 0.7, maxTokens: 4096, stream: false, provider } as any,
+    model: model || merged?.defaultModel || '',
+    config: {
+      model: model || merged?.defaultModel || '',
+      temperature: settings.defaultTemperature ?? 0.7,
+      maxTokens: settings.defaultMaxTokens ?? 4096,
+      stream: false,
+      provider,
+    } as any,
   };
 }
 
+// Non-streaming chat
 chatRoutes.post('/:agentId', async (c) => {
   const agentId = c.req.param('agentId');
   const { message, model: preferredModel, provider: preferredProvider } = await c.req.json<{
@@ -102,7 +114,7 @@ chatRoutes.post('/:agentId', async (c) => {
   });
 });
 
-// Streaming chat endpoint
+// Streaming chat endpoint with enhanced SSE output
 chatRoutes.post('/:agentId/stream', async (c) => {
   const agentId = c.req.param('agentId');
   const { message, model: preferredModel, provider: preferredProvider } = await c.req.json<{
@@ -125,19 +137,25 @@ chatRoutes.post('/:agentId/stream', async (c) => {
 
   const { compiled } = buildPrompt({ workspace, userMessage: message });
 
-  const { instance: aiProvider, config } = await resolveProvider(
+  const { instance: aiProvider, config, provider, model } = await resolveProvider(
     c.env, preferredProvider, preferredModel,
   );
 
   c.header('Content-Type', 'text/event-stream');
   c.header('Cache-Control', 'no-cache');
   c.header('Connection', 'keep-alive');
+  c.header('X-Accel-Buffering', 'no');
 
   const streamConfig = { ...config, stream: true };
 
   const stream = new ReadableStream({
     async start(controller) {
+      const enc = (data: string) => controller.enqueue(new TextEncoder().encode(data));
+
       try {
+        // Emit provider/model info first
+        enc(`data: ${JSON.stringify({ type: 'meta', provider, model })}\n\n`);
+
         const generator = aiProvider.streamComplete({
           systemPrompt: compiled.systemPrompt,
           messages: [{ role: 'user', content: message }],
@@ -145,18 +163,13 @@ chatRoutes.post('/:agentId/stream', async (c) => {
         });
 
         for await (const chunk of generator) {
-          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`));
+          enc(`data: ${JSON.stringify(chunk)}\n\n`);
         }
 
-        controller.enqueue(new TextEncoder().encode(
-          `data: ${JSON.stringify({ type: 'meta', provider: config.provider, model: config.model })}\n\n`,
-        ));
-        controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+        enc('data: [DONE]\n\n');
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-        controller.enqueue(
-          new TextEncoder().encode(`data: ${JSON.stringify({ type: 'error', error: errorMsg })}\n\n`),
-        );
+        const errorMsg = err instanceof Error ? err.message : 'Unknown streaming error';
+        enc(`data: ${JSON.stringify({ type: 'error', error: errorMsg })}\n\n`);
       } finally {
         controller.close();
       }
