@@ -19,7 +19,7 @@ app.use('*', secureHeaders());
 app.use(
   '*',
   cors({
-    origin: ['http://localhost:5173', 'http://localhost:8081', 'https://*.pages.dev', 'https://*.workers.dev'],
+    origin: ['http://localhost:5173', 'http://localhost:8081'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -42,8 +42,15 @@ app.route('/api/agents', agentRoutes);
 // Telegram webhook (no auth, verified by token)
 app.route('/webhook/telegram', telegramRoutes);
 
-// 404 fallback
-app.notFound((c) => c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Route not found' } }, 404));
+// SPA catch-all — serve index.html from Assets for any unmatched GET route
+app.get('/*', async (c) => {
+  return c.env.ASSETS.fetch(new URL('/index.html', c.req.url));
+});
+
+// 404 fallback for API/webhook routes
+app.notFound((c) => {
+  return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Route not found' } }, 404);
+});
 
 // Global error handler
 app.onError((err, c) => {

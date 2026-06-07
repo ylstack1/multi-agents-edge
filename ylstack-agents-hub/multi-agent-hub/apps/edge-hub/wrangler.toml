@@ -6,6 +6,12 @@ compatibility_flags = ["nodejs_compat"]
 # Worker Configuration
 workers_dev = true
 
+# Static Assets (web-ui SPA)
+[assets]
+directory = "../web-ui/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
 # KV Namespace for VFS cache
 [[kv_namespaces]]
 binding = "VFS_CACHE"

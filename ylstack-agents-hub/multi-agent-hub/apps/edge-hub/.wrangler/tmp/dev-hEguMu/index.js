@@ -9977,7 +9977,7 @@ app.use("*", secureHeaders());
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:5173", "http://localhost:8081", "https://*.pages.dev", "https://*.workers.dev"],
+    origin: ["http://localhost:5173", "http://localhost:8081"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true
@@ -9991,7 +9991,12 @@ app.route("/api/chat", chatRoutes);
 app.route("/api/mcp", mcpRoutes);
 app.route("/api/agents", agentRoutes);
 app.route("/webhook/telegram", telegramRoutes);
-app.notFound((c) => c.json({ success: false, error: { code: "NOT_FOUND", message: "Route not found" } }, 404));
+app.get("/*", async (c) => {
+  return c.env.ASSETS.fetch(new URL("/index.html", c.req.url));
+});
+app.notFound((c) => {
+  return c.json({ success: false, error: { code: "NOT_FOUND", message: "Route not found" } }, 404);
+});
 app.onError((err, c) => {
   console.error("Unhandled error:", err);
   return c.json(
@@ -10048,7 +10053,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-gMVC5q/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-c7pG2d/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -10080,7 +10085,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-gMVC5q/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-c7pG2d/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
