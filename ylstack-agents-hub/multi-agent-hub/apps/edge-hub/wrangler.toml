@@ -24,7 +24,7 @@ ENVIRONMENT = "development"
 LOG_LEVEL = "debug"
 
 # Workers AI binding (default provider, no API key needed)
-[[ai]]
+[ai]
 binding = "AI"
 
 # Logging & Observability

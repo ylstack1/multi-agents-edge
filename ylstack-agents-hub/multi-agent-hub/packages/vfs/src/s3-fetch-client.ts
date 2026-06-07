@@ -9,7 +9,7 @@ export class S3FetchClient {
   private config: VFSConfig;
   private fetch: Fetcher;
 
-  constructor(config: VFSConfig, fetcher: Fetcher = globalThis.fetch) {
+  constructor(config: VFSConfig, fetcher: Fetcher = globalThis.fetch.bind(globalThis)) {
     this.config = config;
     this.fetch = fetcher;
   }

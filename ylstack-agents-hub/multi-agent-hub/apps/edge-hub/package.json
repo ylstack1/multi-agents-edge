@@ -13,12 +13,12 @@
     "clean": "rm -rf .turbo dist"
   },
   "dependencies": {
+    "@hono/zod-validator": "^0.4.0",
     "@midas/ai-provider": "workspace:*",
     "@midas/compiler": "workspace:*",
     "@midas/contracts": "workspace:*",
     "@midas/mcp-edge": "workspace:*",
     "@midas/vfs": "workspace:*",
-    "@hono/zod-validator": "^0.4.0",
     "hono": "^4.6.0",
     "zod": "^3.24.0"
   },
@@ -26,6 +26,6 @@
     "@cloudflare/workers-types": "^4.20241201.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0",
-    "wrangler": "^3.95.0"
+    "wrangler": "^4.0.0"
   }
 }
