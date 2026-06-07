@@ -348,7 +348,8 @@ export interface IntegrationInfo {
 
 /** GET /api/settings — Load all settings (keys stripped) */
 export async function getSettings(): Promise<any> {
-  return request<any>("/settings");
+  const result = await request<{ success: boolean; data: any }>("/settings");
+  return result.data;
 }
 
 /** PUT /api/settings — Save all settings */

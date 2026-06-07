@@ -12,10 +12,10 @@ import { DEEPSEEK_MODELS } from './deepseek-provider.js';
 import { GROK_MODELS } from './grok-provider.js';
 
 export interface ProviderFactory {
-  create(config: ProviderConfig, ai?: Ai): AIProvider;
+  create(config: ProviderConfig, ai?: any): AIProvider;
 }
 
-type ProviderConstructor = new (config: ProviderConfig, ai?: Ai) => AIProvider;
+type ProviderConstructor = new (config: ProviderConfig, ai?: any) => AIProvider;
 
 /** Built-in provider constructors */
 const registry: Record<string, ProviderConstructor> = {
@@ -58,7 +58,7 @@ export function isProviderRegistered(name: string): boolean {
  */
 export function createProviderFromSettings(
   settings: ProviderSetting,
-  ai?: Ai,
+  ai?: any,
 ): AIProvider {
   // Built-in provider
   if (registry[settings.provider]) {

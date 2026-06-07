@@ -9,50 +9,13 @@ import { DiagnosticPing } from "@/components/mcp/DiagnosticPing";
 import { EndpointForm } from "@/components/mcp/EndpointForm";
 import { ToolDiscoverySchema } from "@/components/mcp/ToolDiscoverySchema";
 import {
-  Settings,
   Moon,
   Sun,
   PanelRightClose,
   PanelRightOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-function SettingsPage() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">Settings</h2>
-        <p className="text-sm text-muted-foreground">
-          Configure global application settings.
-        </p>
-      </div>
-
-      <div className="rounded-lg border border-border bg-card p-4">
-        <h3 className="text-sm font-medium text-foreground">Appearance</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Theme settings are managed via the toggle in the bottom-left of the
-          sidebar.
-        </p>
-      </div>
-
-      <div className="rounded-lg border border-border bg-card p-4">
-        <h3 className="text-sm font-medium text-foreground">API Endpoint</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          The API base URL is configured via the VITE_API_URL environment
-          variable. Current:{" "}
-          {import.meta.env.VITE_API_URL || "http://localhost:8787"}
-        </p>
-      </div>
-
-      <div className="rounded-lg border border-border bg-card p-4">
-        <h3 className="text-sm font-medium text-foreground">About</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Multi-Agent Hub Web UI v0.1.0
-        </p>
-      </div>
-    </div>
-  );
-}
+import { SettingsPage } from "@/components/settings/SettingsPage";
 
 function McpConfigPage() {
   return (

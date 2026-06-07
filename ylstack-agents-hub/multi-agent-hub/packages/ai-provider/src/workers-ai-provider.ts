@@ -1,4 +1,4 @@
-import type { LLMStreamChunk, LLMProvider } from '@midas/contracts';
+import type { LLMStreamChunk } from '@midas/contracts';
 import type {
   AIProvider,
   CompletionRequest,
@@ -10,13 +10,13 @@ import type {
  * No API key required. Runs on Cloudflare's edge GPUs.
  */
 export class WorkersAIProvider implements AIProvider {
-  readonly name: LLMProvider = 'workers-ai';
-  private ai: Ai;
+  readonly name = 'workers-ai' as const;
+  private ai: any;
   private defaultModel: string;
 
-  constructor(ai: Ai, defaultModel = '@cf/meta/llama-3.2-3b-instruct') {
+  constructor(config: { model?: string } = {}, ai?: any) {
     this.ai = ai;
-    this.defaultModel = defaultModel;
+    this.defaultModel = config.model || '@cf/meta/llama-3.2-3b-instruct';
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResponse> {
