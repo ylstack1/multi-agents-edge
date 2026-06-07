@@ -87,6 +87,7 @@ export interface WorkspaceState {
   chatArchive: Record<string, Record<string, ChatMessage[]>>;
   getChatMessages: (agentId: string) => ChatMessage[];
   addChatMessage: (agentId: string, message: ChatMessage) => void;
+  setChatMessages: (messages: ChatMessage[], agentId: string) => void;
   clearChatMessages: (agentId: string) => void;
   /** Archive current session and start a fresh one */
   newChatSession: (agentId: string) => void;
@@ -187,6 +188,11 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       clearChatMessages: (agentId) => {
         const sessions = { ...get().chatSessions };
         sessions[agentId] = [];
+        set({ chatSessions: sessions });
+      },
+      setChatMessages: (messages, agentId) => {
+        const sessions = { ...get().chatSessions };
+        sessions[agentId] = messages;
         set({ chatSessions: sessions });
       },
       newChatSession: (agentId) => {

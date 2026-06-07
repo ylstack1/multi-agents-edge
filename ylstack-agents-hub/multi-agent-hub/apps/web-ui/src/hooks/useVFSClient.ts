@@ -36,7 +36,7 @@ export function useAgents() {
       const result: AgentDto[] = await apiListAgents();
       // Map backend DTO (agentId, lastModified, files) to store Agent type
       const agents = result.map((a) => ({
-        id: a.agentId || a.id || "",
+        id: a.agentId || "",
         name: a.agentId === "lead" ? "Lead Agent" : (a.agentId || "Unknown"),
         status: "idle" as const,
         description: a.agentId === "lead"

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useWorkspaceStore, type ChatMessage } from "@/store/workspaceStore";
+import { useWorkspaceStore, type ChatMessage, type ToolCall } from "@/store/workspaceStore";
 import { useSendChat, useAgents } from "@/hooks/useVFSClient";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
@@ -84,17 +84,20 @@ export function ChatPlayground() {
 
   /** Update the streaming message in place (replace the last assistant message) */
   const updateStreamingMessage = useCallback(
-    (content: string, reasoning?: string, toolCalls?: any[]) => {
+    (content: string, reasoning?: string, toolCalls?: ToolCall[]) => {
       const current = getChatMessages(selectedAgentId);
       const idx = current.findIndex((m) => m.id === streamingMsgRef.current?.id);
       if (idx === -1) return;
+      const existing = current[idx]!;
       const updated = [...current];
       updated[idx] = {
-        ...updated[idx],
+        id: existing.id,
+        role: existing.role,
         content,
-        ...(reasoning !== undefined ? { reasoning } : {}),
-        ...(toolCalls !== undefined ? { toolCalls } : {}),
-      };
+        timestamp: existing.timestamp,
+        toolCalls: toolCalls ?? existing.toolCalls,
+        reasoning: reasoning ?? existing.reasoning,
+      } satisfies ChatMessage;
       setChatMessages(updated, selectedAgentId);
     },
     [getChatMessages, selectedAgentId, setChatMessages],
@@ -230,10 +233,7 @@ export function ChatPlayground() {
       const idx = current.findIndex((m) => m.id === msgId);
       if (idx !== -1) {
         const updated = [...current];
-        updated[idx] = {
-          ...updated[idx],
-          content: `Error: ${(err as Error).message}`,
-        };
+        updated[idx] = { ...updated[idx], content: `Error: ${(err as Error).message}` } as ChatMessage;
         setChatMessages(updated, agentId);
       }
     } finally {

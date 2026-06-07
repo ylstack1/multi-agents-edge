@@ -111,9 +111,10 @@ function App() {
         >
           <ErrorBoundary>
             <AgentLoader>
-              <div className="h-full w-full overflow-y-auto scrollbar-thin">
-                <Routes>
-                <Route path="/" element={<Dashboard />} />
+              <Routes>
+                <Route path="/" element={
+                  <div className="h-full overflow-y-auto scrollbar-thin"><Dashboard /></div>
+                } />
                 <Route
                   path="/workspace/:agentId"
                   element={<MarkdownEditor />}
@@ -123,11 +124,14 @@ function App() {
                   path="/chat/:agentId"
                   element={<ChatPlayground />}
                 />
-                <Route path="/mcp" element={<McpConfigPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/mcp" element={
+                  <div className="h-full overflow-y-auto scrollbar-thin"><McpConfigPage /></div>
+                } />
+                <Route path="/settings" element={
+                  <div className="h-full overflow-y-auto scrollbar-thin"><SettingsPage /></div>
+                } />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-              </div>
             </AgentLoader>
           </ErrorBoundary>
         </main>

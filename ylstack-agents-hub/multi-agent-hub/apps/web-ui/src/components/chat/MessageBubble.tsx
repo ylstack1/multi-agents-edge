@@ -55,7 +55,7 @@ function extractThinkTag(content: string): { cleaned: string; thinkContent: stri
   if (!match) return { cleaned: content, thinkContent: null };
   return {
     cleaned: content.replace(/<think>[\s\S]*?<\/think>/g, "").trim(),
-    thinkContent: match[1].trim(),
+    thinkContent: (match[1] ?? "").trim(),
   };
 }
 
