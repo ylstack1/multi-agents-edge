@@ -9,7 +9,7 @@ workers_dev = true
 # KV Namespace for VFS cache
 [[kv_namespaces]]
 binding = "VFS_CACHE"
-id = "dev" # Set after `wrangler kv:namespace create`
+id = "fdb909ff91d640c8b69b6043476c4064"
 
 # R2 Bucket for markdown workspace storage
 [[r2_buckets]]
