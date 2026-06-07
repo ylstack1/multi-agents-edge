@@ -72,9 +72,9 @@ export async function getAgent(id: string): Promise<AgentDto> {
 }
 
 export async function createAgent(
-  data: Partial<AgentDto>,
-): Promise<AgentDto> {
-  return request<AgentDto>("/agents", {
+  data: { name: string; description?: string },
+): Promise<{ agentId: string; name: string; status: string; message: string }> {
+  return request("/agents/spawn", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -102,7 +102,7 @@ export async function getWorkspace(
   agentId: string,
 ): Promise<WorkspaceDto> {
   return request<WorkspaceDto>(
-    `/workspace/${encodeURIComponent(agentId)}`,
+    `/workspaces/${encodeURIComponent(agentId)}`,
   );
 }
 
@@ -111,7 +111,7 @@ export async function getFile(
   filePath: string,
 ): Promise<FileDto> {
   return request<FileDto>(
-    `/workspace/${encodeURIComponent(agentId)}/file/${encodeURIComponent(filePath)}`,
+    `/workspaces/${encodeURIComponent(agentId)}/files/${encodeURIComponent(filePath)}`,
   );
 }
 
@@ -121,7 +121,7 @@ export async function saveFile(
   content: string,
 ): Promise<FileDto> {
   return request<FileDto>(
-    `/workspace/${encodeURIComponent(agentId)}/file/${encodeURIComponent(filePath)}`,
+    `/workspaces/${encodeURIComponent(agentId)}/files/${encodeURIComponent(filePath)}`,
     {
       method: "PUT",
       body: JSON.stringify({ content }),
@@ -131,7 +131,7 @@ export async function saveFile(
 
 export async function resetMemory(agentId: string): Promise<void> {
   return request<void>(
-    `/workspace/${encodeURIComponent(agentId)}/reset`,
+    `/workspaces/${encodeURIComponent(agentId)}/reset-memory`,
     { method: "POST" },
   );
 }
@@ -317,7 +317,7 @@ export async function getDiff(
   agentId: string,
 ): Promise<DiffEntry[]> {
   return request<DiffEntry[]>(
-    `/workspace/${encodeURIComponent(agentId)}/diff`,
+    `/agents/${encodeURIComponent(agentId)}/diff`,
   );
 }
 

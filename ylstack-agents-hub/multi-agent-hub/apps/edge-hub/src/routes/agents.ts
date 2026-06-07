@@ -51,16 +51,16 @@ agentRoutes.post('/spawn', async (c) => {
   await hydrator.writeFile(
     agentId,
     'soul.md',
-    body.soul ?? `# Soul\n\n## Purpose\n${body.description ?? 'Specialized sub-agent'}\n\n## Values\n- Precision\n- Isolation\n- Task completion\n`,
+    body.soul ?? `# Soul\n\n## Purpose\nHelp the user accomplish their tasks.\n\n## Values\n- Accuracy - Provide correct, well-reasoned information\n- Helpfulness - Assist with whatever the user needs\n- Clarity - Communicate clearly and concisely\n`,
   );
 
   await hydrator.writeFile(
     agentId,
     'identity.md',
-    body.identity ?? `# Identity\n\n**Name:** ${body.name}\n**Role:** Sub-agent\n**Type:** SPECIALIZED\n`,
+    body.identity ?? `# Identity\n\n**Name:** ${body.name}\n**Role:** AI Assistant\n**Type:** AGENT\n`,
   );
 
-  await hydrator.writeFile(agentId, 'user.md', '# User Context\n\n*To be populated by Lead Agent during delegation.*\n');
+  await hydrator.writeFile(agentId, 'user.md', '# User Context\n\n*To be populated by the user during interaction.*\n');
 
   await hydrator.writeFile(agentId, 'memory.md', '# Memory\n\n*Agent created at ' + new Date().toISOString() + '*\n');
 

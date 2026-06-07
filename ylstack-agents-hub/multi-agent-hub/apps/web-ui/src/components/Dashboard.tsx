@@ -349,20 +349,37 @@ function CreateAgentModal({
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!name.trim()) return;
-    const agents = useWorkspaceStore.getState().agents;
-    const id = "sub-" + name.toLowerCase().replace(/[^a-z0-9-]/g, "-");
-    const newAgent: Agent = {
-      id,
-      name: name.trim(),
-      status: "idle",
-      description: "Custom agent",
-      lastActive: Date.now(),
-    };
-    useWorkspaceStore.setState({ agents: [...agents, newAgent] });
-    onClose();
+    setCreating(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/agents/spawn`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${btoa("lead:WEB_UI")}` },
+        body: JSON.stringify({ name: name.trim(), description: "Custom agent" }),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`API error ${res.status}: ${body || res.statusText}`);
+      }
+      const data = await res.json();
+      const agentId = data.data?.agentId || "sub-" + name.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
+      // Immediately add to store so it shows up without waiting for poll
+      const store = useWorkspaceStore.getState();
+      store.setAgents([
+        ...store.agents,
+        { id: agentId, name: name.trim(), status: "idle" as const, description: "Custom agent", lastActive: Date.now() },
+      ]);
+      onClose();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -381,8 +398,11 @@ function CreateAgentModal({
           placeholder="Agent name"
           className="mb-3 w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-ring"
           autoFocus
-          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+          onKeyDown={(e) => e.key === "Enter" && !creating && handleCreate()}
         />
+        {error && (
+          <p className="mb-2 text-xs text-red-400">{error}</p>
+        )}
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={onClose}
@@ -392,10 +412,10 @@ function CreateAgentModal({
           </button>
           <button
             onClick={handleCreate}
-            disabled={!name.trim()}
+            disabled={!name.trim() || creating}
             className="rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Create
+            {creating ? "Creating..." : "Create"}
           </button>
         </div>
       </div>

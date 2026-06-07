@@ -37,16 +37,17 @@ export function useAgents() {
       // Map backend DTO (agentId, lastModified, files) to store Agent type
       const agents = result.map((a: any) => ({
         id: a.agentId || a.id,
-        name: a.agentId === "lead" ? "Lead Agent" : (a.name || a.agentId || "Unknown"),
+        name: a.agentId === "lead" ? "Lead Agent" : (a.agentId || "Unknown"),
         status: "idle" as const,
         description: a.agentId === "lead"
-          ? "System orchestrator — manages all agents and tools"
-          : (a.description || "Sub-agent"),
+          ? "System orchestrator"
+          : "Custom agent",
         lastActive: a.lastModified || Date.now(),
       }));
       setAgents(agents);
       return agents;
     },
+    refetchInterval: 15_000,
   });
 }
 

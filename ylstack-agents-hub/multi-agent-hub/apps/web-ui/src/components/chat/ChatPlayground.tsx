@@ -14,7 +14,6 @@ import {
   EyeOff,
   Terminal,
   ChevronDown,
-  Loader2,
   Star,
 } from "lucide-react";
 
@@ -22,7 +21,7 @@ export function ChatPlayground() {
   const { agentId } = useParams<{ agentId: string }>();
   const navigate = useNavigate();
   const agents = useWorkspaceStore((s) => s.agents);
-  const chatMessages = useWorkspaceStore((s) => s.chatMessages);
+  const getChatMessages = useWorkspaceStore((s) => s.getChatMessages);
   const addChatMessage = useWorkspaceStore((s) => s.addChatMessage);
   const clearChatMessages = useWorkspaceStore((s) => s.clearChatMessages);
   const setActiveAgentId = useWorkspaceStore((s) => s.setActiveAgentId);
@@ -30,6 +29,8 @@ export function ChatPlayground() {
   const [selectedAgentId, setSelectedAgentId] = useState(
     agentId || "lead",
   );
+
+  const chatMessages = getChatMessages(selectedAgentId);
   const [showInspector, setShowInspector] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null,
@@ -59,7 +60,7 @@ export function ChatPlayground() {
         content: message,
         timestamp: Date.now(),
       };
-      addChatMessage(userMessage);
+      addChatMessage(selectedAgentId, userMessage);
 
       // Send to API
       setIsLoading(true);
@@ -77,7 +78,7 @@ export function ChatPlayground() {
           toolCalls: response.toolCalls,
           reasoning: response.reasoning,
         };
-        addChatMessage(assistantMessage);
+        addChatMessage(selectedAgentId, assistantMessage);
       } catch (err) {
         const errorMessage: ChatMessage = {
           id: generateId(),
@@ -85,7 +86,7 @@ export function ChatPlayground() {
           content: `Error: ${(err as Error).message}`,
           timestamp: Date.now(),
         };
-        addChatMessage(errorMessage);
+        addChatMessage(selectedAgentId, errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -94,12 +95,13 @@ export function ChatPlayground() {
   );
 
   const handleClearChat = useCallback(() => {
-    clearChatMessages();
-  }, [clearChatMessages]);
+    clearChatMessages(selectedAgentId);
+  }, [clearChatMessages, selectedAgentId]);
 
   const handleGenerateCurl = useCallback(() => {
     if (!selectedAgentId) return;
-    const lastMessage = chatMessages
+    const currentMessages = getChatMessages(selectedAgentId);
+    const lastMessage = currentMessages
       .filter((m) => m.role === "user")
       .pop();
     if (!lastMessage) return;
@@ -116,7 +118,7 @@ export function ChatPlayground() {
   )}'`;
 
     navigator.clipboard.writeText(curlCmd).catch(() => {});
-  }, [selectedAgentId, chatMessages]);
+  }, [selectedAgentId, getChatMessages]);
 
   // Build compiled prompt for inspector
   const compiledPrompt = selectedMessageId

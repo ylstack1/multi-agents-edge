@@ -9009,19 +9009,20 @@ var SystemToolsController = class {
       await this.storage.putObject(agentId, "soul.md", soul ?? `# Soul
 
 ## Purpose
-${description ?? "Specialized sub-agent"}
+Help the user accomplish their tasks.
+
 ## Values
-- Precision
-- Isolation
-- Task completion
+- Accuracy - Provide correct, well-reasoned information
+- Helpfulness - Assist with whatever the user needs
+- Clarity - Communicate clearly and concisely
 `);
       await this.storage.putObject(agentId, "identity.md", identity ?? `# Identity
 
 **Name:** ${name}
-**Role:** Sub-agent
-**Type:** SPECIALIZED
+**Role:** AI Assistant
+**Type:** AGENT
 `);
-      await this.storage.putObject(agentId, "user.md", "# User Context\n\n*To be populated on delegation.*\n");
+      await this.storage.putObject(agentId, "user.md", "# User Context\n\n*To be populated by the user during interaction.*\n");
       await this.storage.putObject(agentId, "memory.md", `# Memory
 
 *Created: ${(/* @__PURE__ */ new Date()).toISOString()}*
@@ -9672,12 +9673,12 @@ agentRoutes.post("/spawn", async (c) => {
     body.soul ?? `# Soul
 
 ## Purpose
-${body.description ?? "Specialized sub-agent"}
+Help the user accomplish their tasks.
 
 ## Values
-- Precision
-- Isolation
-- Task completion
+- Accuracy - Provide correct, well-reasoned information
+- Helpfulness - Assist with whatever the user needs
+- Clarity - Communicate clearly and concisely
 `
   );
   await hydrator.writeFile(
@@ -9686,11 +9687,11 @@ ${body.description ?? "Specialized sub-agent"}
     body.identity ?? `# Identity
 
 **Name:** ${body.name}
-**Role:** Sub-agent
-**Type:** SPECIALIZED
+**Role:** AI Assistant
+**Type:** AGENT
 `
   );
-  await hydrator.writeFile(agentId, "user.md", "# User Context\n\n*To be populated by Lead Agent during delegation.*\n");
+  await hydrator.writeFile(agentId, "user.md", "# User Context\n\n*To be populated by the user during interaction.*\n");
   await hydrator.writeFile(agentId, "memory.md", "# Memory\n\n*Agent created at " + (/* @__PURE__ */ new Date()).toISOString() + "*\n");
   await hydrator.writeFile(
     agentId,

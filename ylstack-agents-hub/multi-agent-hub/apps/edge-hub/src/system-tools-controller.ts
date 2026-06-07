@@ -236,9 +236,9 @@ export class SystemToolsController {
     this.sanitizeAgentId(agentId);
 
     try {
-      await this.storage.putObject(agentId, 'soul.md', soul ?? `# Soul\n\n## Purpose\n${description ?? 'Specialized sub-agent'}\n## Values\n- Precision\n- Isolation\n- Task completion\n`);
-      await this.storage.putObject(agentId, 'identity.md', identity ?? `# Identity\n\n**Name:** ${name}\n**Role:** Sub-agent\n**Type:** SPECIALIZED\n`);
-      await this.storage.putObject(agentId, 'user.md', '# User Context\n\n*To be populated on delegation.*\n');
+      await this.storage.putObject(agentId, 'soul.md', soul ?? `# Soul\n\n## Purpose\nHelp the user accomplish their tasks.\n\n## Values\n- Accuracy - Provide correct, well-reasoned information\n- Helpfulness - Assist with whatever the user needs\n- Clarity - Communicate clearly and concisely\n`);
+      await this.storage.putObject(agentId, 'identity.md', identity ?? `# Identity\n\n**Name:** ${name}\n**Role:** AI Assistant\n**Type:** AGENT\n`);
+      await this.storage.putObject(agentId, 'user.md', '# User Context\n\n*To be populated by the user during interaction.*\n');
       await this.storage.putObject(agentId, 'memory.md', `# Memory\n\n*Created: ${new Date().toISOString()}*\n`);
       await this.storage.putObject(agentId, 'tools.md', tools ?? '# Tools\n\n*No MCP tools assigned yet.*\n');
 

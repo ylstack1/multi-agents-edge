@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { generateId } from "@/lib/utils";
 
 export interface WorkspaceFile {
@@ -80,141 +81,116 @@ export interface WorkspaceState {
   agents: Agent[];
   setAgents: (agents: Agent[]) => void;
 
-  // Chat
-  chatMessages: ChatMessage[];
-  setChatMessages: (messages: ChatMessage[]) => void;
-  addChatMessage: (message: ChatMessage) => void;
-  clearChatMessages: () => void;
-
-  // Theme
-  isDark: boolean;
-  toggleTheme: () => void;
+  // Chat — per-agent sessions persisted to localStorage
+  chatSessions: Record<string, ChatMessage[]>;
+  getChatMessages: (agentId: string) => ChatMessage[];
+  addChatMessage: (agentId: string, message: ChatMessage) => void;
+  clearChatMessages: (agentId: string) => void;
 }
 
-export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
-  activeAgentId: null,
-  setActiveAgentId: (id) => set({ activeAgentId: id }),
+const DEFAULT_FILES: WorkspaceFile[] = [
+  { name: "soul.md", path: "soul.md", content: "", savedContent: "", isDirty: false },
+  { name: "identity.md", path: "identity.md", content: "", savedContent: "", isDirty: false },
+  { name: "user.md", path: "user.md", content: "", savedContent: "", isDirty: false },
+  { name: "memory.md", path: "memory.md", content: "", savedContent: "", isDirty: false },
+  { name: "tools.md", path: "tools.md", content: "", savedContent: "", isDirty: false },
+];
 
-  workspaces: new Map(),
-  setWorkspace: (agentId, workspace) => {
-    const workspaces = new Map(get().workspaces);
-    workspaces.set(agentId, workspace);
-    set({ workspaces });
-  },
-  getWorkspace: (agentId) => {
-    return get().workspaces.get(agentId);
-  },
+const LEAD_AGENT: Agent = {
+  id: "lead",
+  name: "Lead Agent",
+  status: "idle",
+  description: "System orchestrator — manages all agents and tools",
+  lastActive: Date.now(),
+};
 
-  files: [
-    {
-      name: "soul.md",
-      path: "soul.md",
-      content: "",
-      savedContent: "",
-      isDirty: false,
-    },
-    {
-      name: "identity.md",
-      path: "identity.md",
-      content: "",
-      savedContent: "",
-      isDirty: false,
-    },
-    {
-      name: "user.md",
-      path: "user.md",
-      content: "",
-      savedContent: "",
-      isDirty: false,
-    },
-    {
-      name: "memory.md",
-      path: "memory.md",
-      content: "",
-      savedContent: "",
-      isDirty: false,
-    },
-    {
-      name: "tools.md",
-      path: "tools.md",
-      content: "",
-      savedContent: "",
-      isDirty: false,
-    },
-  ],
-  setFiles: (files) => set({ files }),
-  updateFile: (path, content) => {
-    const files = get().files.map((f) =>
-      f.path === path
-        ? { ...f, content, isDirty: content !== f.savedContent }
-        : f,
-    );
-    set({ files });
-  },
-  markFileSaved: (path) => {
-    const files = get().files.map((f) =>
-      f.path === path ? { ...f, savedContent: f.content, isDirty: false } : f,
-    );
-    set({ files });
-  },
+export const useWorkspaceStore = create<WorkspaceState>()(
+  persist(
+    (set, get) => ({
+      activeAgentId: null,
+      setActiveAgentId: (id) => set({ activeAgentId: id }),
 
-  mcpEndpoints: [],
-  setMcpEndpoints: (endpoints) => set({ mcpEndpoints: endpoints }),
-  addEndpoint: (endpoint) => {
-    const newEndpoint: McpEndpoint = {
-      ...endpoint,
-      id: generateId(),
-    };
-    set({ mcpEndpoints: [...get().mcpEndpoints, newEndpoint] });
-  },
-  removeEndpoint: (id) => {
-    set({
-      mcpEndpoints: get().mcpEndpoints.filter((e) => e.id !== id),
-    });
-  },
-  updateEndpointStatus: (id, status) => {
-    set({
-      mcpEndpoints: get().mcpEndpoints.map((e) =>
-        e.id === id ? { ...e, status } : e,
-      ),
-    });
-  },
+      workspaces: new Map(),
+      setWorkspace: (agentId, workspace) => {
+        const workspaces = new Map(get().workspaces);
+        workspaces.set(agentId, workspace);
+        set({ workspaces });
+      },
+      getWorkspace: (agentId) => {
+        return get().workspaces.get(agentId);
+      },
 
-  agents: [
+      files: DEFAULT_FILES,
+      setFiles: (files) => set({ files }),
+      updateFile: (path, content) => {
+        const files = get().files.map((f) =>
+          f.path === path
+            ? { ...f, content, isDirty: content !== f.savedContent }
+            : f,
+        );
+        set({ files });
+      },
+      markFileSaved: (path) => {
+        const files = get().files.map((f) =>
+          f.path === path ? { ...f, savedContent: f.content, isDirty: false } : f,
+        );
+        set({ files });
+      },
+
+      mcpEndpoints: [],
+      setMcpEndpoints: (endpoints) => set({ mcpEndpoints: endpoints }),
+      addEndpoint: (endpoint) => {
+        const newEndpoint: McpEndpoint = {
+          ...endpoint,
+          id: generateId(),
+        };
+        set({ mcpEndpoints: [...get().mcpEndpoints, newEndpoint] });
+      },
+      removeEndpoint: (id) => {
+        set({
+          mcpEndpoints: get().mcpEndpoints.filter((e) => e.id !== id),
+        });
+      },
+      updateEndpointStatus: (id, status) => {
+        set({
+          mcpEndpoints: get().mcpEndpoints.map((e) =>
+            e.id === id ? { ...e, status } : e,
+          ),
+        });
+      },
+
+      agents: [LEAD_AGENT],
+      setAgents: (agents) => {
+        const hasLead = agents.some((a) => a.id === "lead");
+        if (!hasLead) {
+          agents.unshift({ ...LEAD_AGENT });
+        }
+        set({ agents });
+      },
+
+      // Chat — per-agent sessions
+      chatSessions: {},
+      getChatMessages: (agentId) => {
+        return get().chatSessions[agentId] ?? [];
+      },
+      addChatMessage: (agentId, message) => {
+        const sessions = { ...get().chatSessions };
+        const messages = [...(sessions[agentId] ?? []), message];
+        sessions[agentId] = messages;
+        set({ chatSessions: sessions });
+      },
+      clearChatMessages: (agentId) => {
+        const sessions = { ...get().chatSessions };
+        sessions[agentId] = [];
+        set({ chatSessions: sessions });
+      },
+    }),
     {
-      id: "lead",
-      name: "Lead Agent",
-      status: "idle",
-      description: "System orchestrator — manages all agents and tools",
-      lastActive: Date.now(),
+      name: "midas-workspace-store",
+      // Only persist chat sessions + agents to localStorage
+      partialize: (state) => ({
+        chatSessions: state.chatSessions,
+      }),
     },
-  ],
-  setAgents: (agents) => {
-    // Always ensure lead agent is first and present
-    const hasLead = agents.some((a) => a.id === "lead");
-    if (!hasLead) {
-      agents.unshift({
-        id: "lead",
-        name: "Lead Agent",
-        status: "idle",
-        description: "System orchestrator — manages all agents and tools",
-        lastActive: Date.now(),
-      });
-    }
-    set({ agents });
-  },
-
-  chatMessages: [],
-  setChatMessages: (messages) => set({ chatMessages: messages }),
-  addChatMessage: (message) => {
-    set({ chatMessages: [...get().chatMessages, message] });
-  },
-  clearChatMessages: () => set({ chatMessages: [] }),
-
-  isDark: true,
-  toggleTheme: () => {
-    const next = !get().isDark;
-    document.documentElement.classList.toggle("dark", next);
-    set({ isDark: next });
-  },
-}));
+  ),
+);
