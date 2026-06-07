@@ -1,20 +1,27 @@
-import type { LLMStreamChunk } from '@midas/contracts';
-import type { AIProvider, CompletionRequest, CompletionResponse } from './types.js';
+import type { LLMStreamChunk, LLMProvider } from '@midas/contracts';
+import type {
+  AIProvider,
+  CompletionRequest,
+  CompletionResponse,
+  ProviderConfig,
+} from './types.js';
 
 /**
  * OpenAI provider implementation.
  * Uses standard Web Fetch API — compatible with edge runtimes.
  */
 export class OpenAIProvider implements AIProvider {
-  readonly name = 'openai';
+  readonly name: LLMProvider = 'openai';
   private apiKey: string;
+  private baseUrl: string;
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
+  constructor(config: ProviderConfig) {
+    this.apiKey = config.apiKey ?? '';
+    this.baseUrl = config.baseUrl ?? 'https://api.openai.com';
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResponse> {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -66,7 +73,7 @@ export class OpenAIProvider implements AIProvider {
     const body = this.buildRequestBody(req);
     body.stream = true;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

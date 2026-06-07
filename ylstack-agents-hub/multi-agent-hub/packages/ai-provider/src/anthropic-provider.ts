@@ -1,16 +1,21 @@
-import type { LLMStreamChunk } from '@midas/contracts';
-import type { AIProvider, CompletionRequest, CompletionResponse } from './types.js';
+import type { LLMStreamChunk, LLMProvider } from '@midas/contracts';
+import type {
+  AIProvider,
+  CompletionRequest,
+  CompletionResponse,
+  ProviderConfig,
+} from './types.js';
 
 /**
  * Anthropic provider implementation.
  * Uses standard Web Fetch API — compatible with edge runtimes.
  */
 export class AnthropicProvider implements AIProvider {
-  readonly name = 'anthropic';
+  readonly name: LLMProvider = 'anthropic';
   private apiKey: string;
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
+  constructor(config: ProviderConfig) {
+    this.apiKey = config.apiKey ?? '';
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResponse> {

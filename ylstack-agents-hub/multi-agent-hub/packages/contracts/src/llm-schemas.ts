@@ -25,12 +25,24 @@ export const LLMMessageSchema = z.object({
 
 export type LLMMessage = z.infer<typeof LLMMessageSchema>;
 
+export const LLM_PROVIDERS = [
+  'workers-ai',
+  'openai',
+  'anthropic',
+  'google',
+  'deepseek',
+  'grok',
+  'openrouter',
+] as const;
+
+export type LLMProvider = (typeof LLM_PROVIDERS)[number];
+
 export const LLMConfigSchema = z.object({
-  model: z.string().default('gpt-4o'),
+  model: z.string().default('@cf/meta/llama-3.2-3b-instruct'),
   temperature: z.number().min(0).max(2).default(0.7),
   maxTokens: z.number().positive().default(4096),
   stream: z.boolean().default(true),
-  provider: z.enum(['openai', 'anthropic']).default('openai'),
+  provider: z.enum(LLM_PROVIDERS).default('workers-ai'),
 });
 
 export type LLMConfig = z.infer<typeof LLMConfigSchema>;
@@ -82,3 +94,42 @@ export const LLMStreamChunkSchema = z.object({
 });
 
 export type LLMStreamChunk = z.infer<typeof LLMStreamChunkSchema>;
+
+// ── Provider & Integration Settings ──────────────────────────────
+
+export const ProviderSettingSchema = z.object({
+  provider: z.enum(LLM_PROVIDERS),
+  enabled: z.boolean().default(true),
+  apiKey: z.string().optional(),
+  baseUrl: z.string().optional(),
+  defaultModel: z.string().default(''),
+  models: z.array(z.string()).optional(),
+  modelsLastFetched: z.number().optional(),
+  customModels: z.array(z.string()).optional(),
+  config: z.record(z.unknown()).optional(),
+});
+
+export type ProviderSetting = z.infer<typeof ProviderSettingSchema>;
+
+export const IntegrationSettingSchema = z.object({
+  type: z.string(),
+  enabled: z.boolean().default(false),
+  config: z.record(z.unknown()).default({}),
+  label: z.string().optional(),
+});
+
+export type IntegrationSetting = z.infer<typeof IntegrationSettingSchema>;
+
+export const AppSettingsSchema = z.object({
+  providers: z.record(z.string(), ProviderSettingSchema).default({}),
+  integrations: z.record(z.string(), IntegrationSettingSchema).default({}),
+  defaultProvider: z.enum(LLM_PROVIDERS).default('workers-ai'),
+  defaultModel: z.string().default('@cf/meta/llama-3.2-3b-instruct'),
+  telegram: z.object({
+    botToken: z.string().optional(),
+    leadAgentId: z.string().default('lead'),
+    agentMappings: z.record(z.string(), z.string()).default({}),
+  }).default({}),
+});
+
+export type AppSettings = z.infer<typeof AppSettingsSchema>;

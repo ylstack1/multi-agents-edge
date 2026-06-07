@@ -18,9 +18,14 @@ bucket_name = "midas-workspaces"
 preview_bucket_name = "midas-workspaces-dev"
 
 # Environment Variables (set in .dev.vars locally, or via wrangler secret in prod)
+# AI Provider Keys (legacy — use settings UI for management)
 [vars]
 ENVIRONMENT = "development"
 LOG_LEVEL = "debug"
+
+# Workers AI binding (default provider, no API key needed)
+[[ai]]
+binding = "AI"
 
 # Logging & Observability
 [observability]

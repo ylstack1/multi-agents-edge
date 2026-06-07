@@ -2,10 +2,13 @@ export interface Env {
   // S3-compatible R2 bucket for workspace files
   WORKSPACE_BUCKET: R2Bucket;
 
-  // KV cache for read-through caching
+  // KV cache for read-through caching and settings storage
   VFS_CACHE: KVNamespace;
 
-  // AI Provider Keys
+  // Workers AI binding (default provider, no API key needed)
+  AI: Ai;
+
+  // Legacy AI Provider Keys (override-able via settings UI)
   OPENAI_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;
 

@@ -1,16 +1,60 @@
 import { Hono } from 'hono';
-import { createProvider } from '@midas/ai-provider';
+import { createProviderFromSettings } from '@midas/ai-provider';
 import { WorkspaceHydrator } from '@midas/vfs';
 import { S3FetchClient } from '@midas/vfs';
 import { KVCacheManager } from '@midas/vfs';
 import { buildPrompt, extractToolDefinitions } from '@midas/compiler';
+import { SettingsStore } from '../settings-store.js';
 import type { Env } from '../../worker-configuration.d.ts';
 
 const chatRoutes = new Hono<{ Bindings: Env }>();
 
+/** Resolve provider from settings with fallback */
+async function resolveProvider(
+  env: Env,
+  preferredProvider?: string,
+  preferredModel?: string,
+) {
+  const store = new SettingsStore(env.VFS_CACHE);
+  const settings = await store.load();
+
+  let provider = preferredProvider || settings.defaultProvider;
+  let model = preferredModel || settings.defaultModel;
+  const setting = settings.providers[provider];
+
+  if (!setting?.enabled || !setting) {
+    // Fallback to first enabled provider
+    const enabled = Object.entries(settings.providers).find(([, s]) => s.enabled);
+    if (enabled) {
+      provider = enabled[0];
+      model = enabled[1].defaultModel || model;
+    } else {
+      // Hard fallback to workers-ai
+      provider = 'workers-ai';
+      model = '@cf/meta/llama-3.2-3b-instruct';
+    }
+  }
+
+  const merged = {
+    ...settings.providers[provider],
+    apiKey: settings.providers[provider]?.apiKey ||
+      (provider === 'openai' ? env.OPENAI_API_KEY : undefined) ||
+      (provider === 'anthropic' ? env.ANTHROPIC_API_KEY : undefined),
+  };
+
+  const ai = provider === 'workers-ai' ? env.AI : undefined;
+
+  return {
+    instance: createProviderFromSettings(merged, ai),
+    provider,
+    model,
+    config: { model, temperature: 0.7, maxTokens: 4096, stream: false, provider } as any,
+  };
+}
+
 chatRoutes.post('/:agentId', async (c) => {
   const agentId = c.req.param('agentId');
-  const { message, model, provider } = await c.req.json<{
+  const { message, model: preferredModel, provider: preferredProvider } = await c.req.json<{
     message: string;
     model?: string;
     provider?: string;
@@ -20,7 +64,6 @@ chatRoutes.post('/:agentId', async (c) => {
     return c.json({ success: false, error: { code: 'MISSING_MESSAGE', message: 'Message is required' } }, 400);
   }
 
-  // Hydrate workspace
   const s3 = new S3FetchClient({
     r2Endpoint: 'https://r2.cloudflarestorage.com',
     r2Bucket: 'midas-workspaces-dev',
@@ -29,41 +72,20 @@ chatRoutes.post('/:agentId', async (c) => {
   const hydrator = new WorkspaceHydrator({ s3, cache });
   const workspace = await hydrator.readWorkspace(agentId);
 
-  // Build prompt from workspace
-  const { compiled } = buildPrompt({
-    workspace,
-    userMessage: message,
-    config: { model: model ?? 'gpt-4o', provider: (provider as 'openai' | 'anthropic') ?? 'openai' },
-  });
+  const { compiled } = buildPrompt({ workspace, userMessage: message });
 
-  // Extract tool definitions
   const toolsMd = workspace.files['tools.md'];
   const toolDefinitions = extractToolDefinitions(toolsMd ?? null);
 
-  // Create AI provider
-  const aiProvider = createProvider(
-    { openaiApiKey: c.env.OPENAI_API_KEY, anthropicApiKey: c.env.ANTHROPIC_API_KEY },
-    provider,
+  const { instance: aiProvider, config } = await resolveProvider(
+    c.env, preferredProvider, preferredModel,
   );
 
   const response = await aiProvider.complete({
     systemPrompt: compiled.systemPrompt,
-    messages: [],
-    tools: toolDefinitions?.map((t) => ({
-      type: 'function' as const,
-      function: {
-        name: t.name,
-        description: t.description ?? '',
-        parameters: t.inputSchema as Record<string, unknown>,
-      },
-    })),
-    config: {
-      model: model ?? 'gpt-4o',
-      temperature: 0.7,
-      maxTokens: 4096,
-      stream: false,
-      provider: (provider as 'openai' | 'anthropic') ?? 'openai',
-    },
+    messages: [{ role: 'user', content: message }],
+    tools: toolDefinitions,
+    config,
   });
 
   return c.json({
@@ -74,6 +96,8 @@ chatRoutes.post('/:agentId', async (c) => {
       finishReason: response.finishReason,
       usage: response.usage,
       compiledPrompt: compiled,
+      provider: config.provider,
+      model: config.model,
     },
   });
 });
@@ -81,7 +105,7 @@ chatRoutes.post('/:agentId', async (c) => {
 // Streaming chat endpoint
 chatRoutes.post('/:agentId/stream', async (c) => {
   const agentId = c.req.param('agentId');
-  const { message, model, provider } = await c.req.json<{
+  const { message, model: preferredModel, provider: preferredProvider } = await c.req.json<{
     message: string;
     model?: string;
     provider?: string;
@@ -91,7 +115,6 @@ chatRoutes.post('/:agentId/stream', async (c) => {
     return c.json({ success: false, error: { code: 'MISSING_MESSAGE', message: 'Message is required' } }, 400);
   }
 
-  // Hydrate workspace
   const s3 = new S3FetchClient({
     r2Endpoint: 'https://r2.cloudflarestorage.com',
     r2Bucket: 'midas-workspaces-dev',
@@ -100,22 +123,17 @@ chatRoutes.post('/:agentId/stream', async (c) => {
   const hydrator = new WorkspaceHydrator({ s3, cache });
   const workspace = await hydrator.readWorkspace(agentId);
 
-  // Build prompt
-  const { compiled } = buildPrompt({
-    workspace,
-    userMessage: message,
-  });
+  const { compiled } = buildPrompt({ workspace, userMessage: message });
 
-  // Create AI provider
-  const aiProvider = createProvider(
-    { openaiApiKey: c.env.OPENAI_API_KEY, anthropicApiKey: c.env.ANTHROPIC_API_KEY },
-    provider,
+  const { instance: aiProvider, config } = await resolveProvider(
+    c.env, preferredProvider, preferredModel,
   );
 
-  // Set up SSE stream
   c.header('Content-Type', 'text/event-stream');
   c.header('Cache-Control', 'no-cache');
   c.header('Connection', 'keep-alive');
+
+  const streamConfig = { ...config, stream: true };
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -123,23 +141,22 @@ chatRoutes.post('/:agentId/stream', async (c) => {
         const generator = aiProvider.streamComplete({
           systemPrompt: compiled.systemPrompt,
           messages: [{ role: 'user', content: message }],
-          config: {
-            model: model ?? 'gpt-4o',
-            temperature: 0.7,
-            maxTokens: 4096,
-            stream: true,
-            provider: (provider as 'openai' | 'anthropic') ?? 'openai',
-          },
+          config: streamConfig,
         });
 
         for await (const chunk of generator) {
           controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`));
         }
 
+        controller.enqueue(new TextEncoder().encode(
+          `data: ${JSON.stringify({ type: 'meta', provider: config.provider, model: config.model })}\n\n`,
+        ));
         controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'error', error: errorMsg })}\n\n`));
+        controller.enqueue(
+          new TextEncoder().encode(`data: ${JSON.stringify({ type: 'error', error: errorMsg })}\n\n`),
+        );
       } finally {
         controller.close();
       }

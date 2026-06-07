@@ -8,6 +8,7 @@ import { chatRoutes } from './routes/chat.js';
 import { mcpRoutes } from './routes/mcp.js';
 import { agentRoutes } from './routes/agents.js';
 import { telegramRoutes } from './routes/telegram.js';
+import { settingsRoutes } from './routes/settings.js';
 import type { Env } from '../worker-configuration.d.ts';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -18,7 +19,7 @@ app.use('*', secureHeaders());
 app.use(
   '*',
   cors({
-    origin: ['http://localhost:5173', 'http://localhost:8081', 'https://*.pages.dev'],
+    origin: ['http://localhost:5173', 'http://localhost:8081', 'https://*.pages.dev', 'https://*.workers.dev'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -27,6 +28,9 @@ app.use(
 
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: Date.now(), version: '0.1.0' }));
+
+// Settings API (auth via session secret — matching ingress pattern)
+app.route('/api/settings', settingsRoutes);
 
 // API Routes (all behind ingress router for auth)
 app.use('/api/*', ingressRouter);

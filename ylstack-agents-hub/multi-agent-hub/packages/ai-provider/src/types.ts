@@ -1,4 +1,4 @@
-import type { LLMMessage, LLMStreamChunk, LLMConfig } from '@midas/contracts';
+import type { LLMMessage, LLMStreamChunk, LLMConfig, LLMProvider } from '@midas/contracts';
 
 export interface ToolDefinition {
   type: 'function';
@@ -32,7 +32,13 @@ export interface CompletionResponse {
 }
 
 export interface AIProvider {
-  readonly name: string;
+  readonly name: LLMProvider;
   complete(req: CompletionRequest): Promise<CompletionResponse>;
   streamComplete(req: CompletionRequest): AsyncGenerator<LLMStreamChunk>;
+}
+
+export interface ProviderConfig {
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
 }

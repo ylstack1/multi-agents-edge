@@ -1,6 +1,5 @@
 import type { AIProvider } from './types.js';
-import { OpenAIProvider } from './openai-provider.js';
-import { AnthropicProvider } from './anthropic-provider.js';
+import { createProviderFromSettings } from './provider-registry.js';
 
 interface ProviderConfig {
   openaiApiKey?: string;
@@ -8,28 +7,32 @@ interface ProviderConfig {
 }
 
 /**
- * Factory for creating AI providers based on configuration.
- * Supports OpenAI and Anthropic.
+ * Legacy provider factory — kept for backward compatibility.
+ * Auto-detects best available provider from environment config.
+ * Falls back to Workers AI (no key needed).
  */
 export function createProvider(config: ProviderConfig, preferredProvider?: string): AIProvider {
-  if (preferredProvider === 'anthropic' && config.anthropicApiKey) {
-    return new AnthropicProvider(config.anthropicApiKey);
+  if (preferredProvider) {
+    const key =
+      preferredProvider === 'openai'
+        ? config.openaiApiKey
+        : preferredProvider === 'anthropic'
+          ? config.anthropicApiKey
+          : undefined;
+    return createProviderFromSettings({
+      provider: preferredProvider as any,
+      enabled: true,
+      apiKey: key,
+    });
   }
 
-  if (preferredProvider === 'openai' && config.openaiApiKey) {
-    return new OpenAIProvider(config.openaiApiKey);
-  }
-
-  // Auto-detect based on available keys
   if (config.openaiApiKey) {
-    return new OpenAIProvider(config.openaiApiKey);
+    return createProviderFromSettings({ provider: 'openai', enabled: true, apiKey: config.openaiApiKey });
   }
-
   if (config.anthropicApiKey) {
-    return new AnthropicProvider(config.anthropicApiKey);
+    return createProviderFromSettings({ provider: 'anthropic', enabled: true, apiKey: config.anthropicApiKey });
   }
 
-  throw new Error(
-    'No AI provider configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in environment.',
-  );
+  // Default: Workers AI — requires no API key
+  return createProviderFromSettings({ provider: 'workers-ai', enabled: true });
 }
